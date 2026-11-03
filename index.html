@@ -243,13 +243,45 @@ body.busy button[type=submit],body.busy .btn.primary{opacity:.65;pointer-events:
   .period select{min-width:110px}
 }
 @media print{
-  .side,.topbar,.scrim,.ph-a,.asg-f,.asg-act,.more,.ib,#toast,.foot,.note,#modal{display:none!important}
+  .side,.topbar,.scrim,.ph-a,.asg-f,.asg-act,.more,.ib,#toast,.foot,.note,#modal,.filter{display:none!important}
   .app{display:block}.page{padding:0;max-width:none}
-  body{background:#fff}.panel{break-inside:avoid;border-color:#bbb}
+  body{background:#fff}.panel{break-inside:avoid;border-color:#bbb;box-shadow:none}
   .print-head{display:block;margin-bottom:16px}
   .print-head h2{font-size:20px}
 }
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* ---------- polish ---------- */
+body{background:#f3f6fb;letter-spacing:.005em}
+.panel,.strip{box-shadow:0 1px 2px rgba(12,31,69,.04),0 4px 14px rgba(12,31,69,.04);border-color:#e3e9f4}
+.panel{border-radius:14px}
+.strip{border-radius:14px}
+.fig{padding:16px 20px}
+.fig b{font-size:25px}
+.fig span{text-transform:uppercase;letter-spacing:.06em;font-size:11px;font-weight:600}
+.topbar{background:rgba(255,255,255,.85);box-shadow:0 1px 0 var(--rule)}
+.ph h2{font-size:28px;letter-spacing:-.03em}
+.ph{padding-bottom:16px;border-bottom:1px solid var(--rule)}
+.tbl th{text-transform:uppercase;letter-spacing:.06em;font-size:11px;background:#f5f8fd}
+.tbl td{padding:13px 16px}
+.tbl tbody tr{transition:background .12s}
+.btn{border-radius:10px;box-shadow:0 1px 2px rgba(12,31,69,.12);letter-spacing:.01em}
+.btn.ghost{box-shadow:none}
+.btn:active{transform:translateY(1px)}
+.in{border-radius:10px;transition:border-color .15s,box-shadow .15s}
+.in:focus{outline:0;box-shadow:0 0 0 3px rgba(181,131,42,.22)}
+.badge{letter-spacing:.01em}
+.side{box-shadow:2px 0 16px rgba(9,24,54,.12)}
+.nav-i{transition:background .15s,color .15s}
+.cards .panel{transition:box-shadow .15s,transform .15s}
+.cards .panel:hover{box-shadow:0 8px 24px rgba(12,31,69,.09);transform:translateY(-1px)}
+.dlg{border-radius:18px}
+.filter{display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap}
+.filter .fld{margin-bottom:0}
+.presets{display:flex;gap:8px;flex-wrap:wrap}
+.sumtbl .grow td{background:#f5f8fd;border-top:1px solid var(--rule-2)}
+.sumtbl .srow td{color:var(--ink-2);font-size:13px}
+.sumtbl .srow td:first-child{padding-left:56px}
 </style>
 </head>
 <body>
@@ -289,7 +321,8 @@ const ICONS = {
   inbox:'<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.5 5.1 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.5-6.9A2 2 0 0 0 16.8 4H7.2a2 2 0 0 0-1.7 1.1z"/>',
   info:'<circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>',
   chevL:'<path d="m15 18-6-6 6-6"/>',
-  chevR:'<path d="m9 18 6-6-6-6"/>'
+  chevR:'<path d="m9 18 6-6-6-6"/>',
+  chart:'<path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/>'
 };
 const ic = (n, c) => `<svg class="ic${c ? ' ' + c : ''}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[n] || ''}</svg>`;
 
@@ -312,7 +345,7 @@ const AVC = ['#1d4fa3', '#0f766e', '#6d4bc4', '#a9741f', '#b53a5c', '#475569'];
 const initials = n => { const p = String(n || '?').trim().split(/\s+/); return ((p[0] || '?')[0] + (p.length > 1 ? p[p.length - 1][0] : '')).toUpperCase(); };
 const avatar = (n, cls) => { let h = 0; for (const ch of String(n)) h = (h * 31 + ch.charCodeAt(0)) % 997; return `<span class="av ${cls || ''}" style="background:${AVC[h % AVC.length]}">${esc(initials(n))}</span>`; };
 
-// Common payday — now read from backend Config!PaymentDay, synced for everyone
+// Common payday: read from backend Config!PaymentDay, synced for everyone
 const paydayValue = () => {
   const r = S.data && S.data.rates;
   return (r && Number(r.paymentDay)) || 25;
@@ -331,7 +364,8 @@ function toast(m, bad) {
 /* ============ STATE ============ */
 const S = {
   token: loadTok(), user: null, data: null, tab: null, month: thisMonth(),
-  auth: 'login', loading: true, nav: false, exp: {}, q: ''
+  auth: 'login', loading: true, nav: false, exp: {}, q: '',
+  from: thisMonth() + '-01', to: today()
 };
 
 /* ============ API ============ */
@@ -409,18 +443,45 @@ function formModal(title, sub, body, submit, handler, attrs) {
 
 /* ============ CALCULATIONS ============ */
 const isAdmin = () => S.user && S.user.role === 'admin';
-const holMap = () => { const m = {}; S.data.holidays.forEach(h => { m[h.date] = h.note || ''; }); return m; };
 const sameAsg = (x, t) => x.teacher === t.teacher && x.subject === t.subject && x.class === t.class;
+
+// Extra rates (holiday rate + special teacher rates) live in one hidden row of the Holidays sheet.
+const CFG_TAG = '__CFG__', CFG_DATE = '2000-01-01';
+const isCfg = h => String(h.note || '').indexOf(CFG_TAG) === 0;
+const holMap = () => { const m = {}; S.data.holidays.forEach(h => { if (!isCfg(h)) m[h.date] = h.note || ''; }); return m; };
+function cfg() {
+  const r = S.data.holidays.find(isCfg); let o = {};
+  if (r) { try { o = JSON.parse(String(r.note).slice(CFG_TAG.length)); } catch (e) {} }
+  return { hol: (o.hol == null || o.hol === '') ? null : Number(o.hol), sp: o.sp || {} };
+}
+async function saveCfg(c, msg) {
+  const old = S.data.holidays.find(isCfg);
+  const j = await run(async () => {
+    if (old) await api('deleteHoliday', { rowIndex: old.rowIndex });
+    return api('addHoliday', { date: CFG_DATE, note: CFG_TAG + JSON.stringify(c) });
+  });
+  if (j) { if (j.data) S.data = j.data; closeModal(false); render(); toast(msg); }
+}
+function tally(t, L) {
+  const r = S.data.rates, c = cfg(), sp = c.sp[t.teacher] || {}, hol = holMap();
+  const pk = (a, b) => (a != null && a !== '' && !isNaN(a)) ? Number(a) : b;
+  const o = { wd: 0, we: 0, hd: 0, earned: 0 };
+  L.forEach(l => {
+    const h = hol[l.date] !== undefined ? pk(sp.hol, c.hol) : null;
+    if (h != null) { o.hd++; o.earned += h; }
+    else if (l.dayType === 'weekend') { o.we++; o.earned += pk(sp.we, r.weekend); }
+    else { o.wd++; o.earned += pk(sp.wd, r.weekday); }
+  });
+  return o;
+}
+const rateFor = (t, l) => tally(t, [l]).earned;
 
 function calc(t) {
   const all = S.month === 'all';
   const L = t.lessons.filter(l => all || String(l.date).indexOf(S.month) === 0);
-  const wd = L.filter(l => l.dayType === 'weekday').length;
-  const we = L.length - wd;
-  const r = S.data.rates;
-  const earned = wd * r.weekday + we * r.weekend;
+  const x = tally(t, L);
   const paid = S.data.payments.filter(p => sameAsg(p, t) && (all || p.month === S.month)).reduce((a, p) => a + p.amount, 0);
-  return { L: L, wd: wd, we: we, earned: earned, paid: paid, balance: earned - paid };
+  return { L: L, wd: x.wd, we: x.we, hd: x.hd, earned: x.earned, paid: paid, balance: x.earned - paid };
 }
 
 function lastPayment(t) {
@@ -432,8 +493,8 @@ function lastPayment(t) {
 }
 
 function summary(idxs, admin) {
-  const o = { l: 0, wd: 0, we: 0, e: 0, p: 0, vis: false };
-  idxs.forEach(i => { const t = S.data.teachers[i], c = calc(t); o.l += c.L.length; o.wd += c.wd; o.we += c.we; if (admin || t.showAmount) { o.vis = true; o.e += c.earned; o.p += c.paid; } });
+  const o = { l: 0, wd: 0, we: 0, hd: 0, e: 0, p: 0, vis: false };
+  idxs.forEach(i => { const t = S.data.teachers[i], c = calc(t); o.l += c.L.length; o.wd += c.wd; o.we += c.we; o.hd += c.hd; if (admin || t.showAmount) { o.vis = true; o.e += c.earned; o.p += c.paid; } });
   return o;
 }
 function months() {
@@ -458,20 +519,21 @@ function teacherNameOptions() {
 /* ============ LAYOUT ============ */
 const PAGES = {
   overview:   { t: 'Overview', s: 'Lessons, earnings and payments across the school.', i: 'grid', p: true },
+  summary:    { t: 'Summary', s: 'Lessons, earnings and payments for any date range.', i: 'chart' },
   teachers:   { t: 'Teachers and lessons', s: 'Manage assignments and log lessons for any teacher.', i: 'users', p: true },
   lessons:    { t: 'My lessons', s: 'Your lessons and what you are owed.', i: 'book', p: true },
   payments:   { t: 'Payments', s: 'Payments recorded against each assignment.', i: 'wallet', p: true },
   holidays:   { t: 'Holidays', s: 'Teachers see a warning when they log a lesson on these dates.', i: 'calendar' },
-  rates:      { t: 'Rates and rules', s: 'Set what a lesson pays, the payday, and daily lesson limits.', i: 'sliders' },
+  rates:      { t: 'Rates and rules', s: 'Set what a lesson pays, the payday, holiday and special teacher rates, and daily lesson limits.', i: 'sliders' },
   accounts:   { t: 'Accounts', s: 'Approve, create and manage sign-in accounts.', i: 'key' },
   complaints: { t: 'Complaints', s: 'Raise an issue or respond to one.', i: 'message' },
   account:    { t: 'Password', s: 'Change the password you use to sign in.', i: 'lock' }
 };
 const NAV = {
-  admin:   [{ g: 'Dashboard', items: ['overview'] }, { g: 'Manage', items: ['teachers', 'payments', 'holidays', 'rates'] }, { g: 'Administration', items: ['accounts', 'complaints', 'account'] }],
+  admin:   [{ g: 'Dashboard', items: ['overview', 'summary'] }, { g: 'Manage', items: ['teachers', 'payments', 'holidays', 'rates'] }, { g: 'Administration', items: ['accounts', 'complaints', 'account'] }],
   teacher: [{ g: 'Menu', items: ['lessons', 'payments'] }, { g: 'Support', items: ['complaints', 'account'] }]
 };
-const NAVLABEL = { overview: 'Overview', teachers: 'Teachers', lessons: 'My lessons', payments: 'Payments', holidays: 'Holidays', rates: 'Rates', accounts: 'Accounts', complaints: 'Complaints', account: 'Password' };
+const NAVLABEL = { overview: 'Overview', summary: 'Summary', teachers: 'Teachers', lessons: 'My lessons', payments: 'Payments', holidays: 'Holidays', rates: 'Rates', accounts: 'Accounts', complaints: 'Complaints', account: 'Password' };
 
 function render() {
   const app = $('#app');
@@ -500,12 +562,12 @@ function periodSel() {
 
 function shell() {
   const admin = isAdmin();
-  if (!PAGES[S.tab] || (admin ? ['lessons'] : ['overview', 'teachers', 'holidays', 'rates', 'accounts']).indexOf(S.tab) >= 0) S.tab = admin ? 'overview' : 'lessons';
+  if (!PAGES[S.tab] || (admin ? ['lessons'] : ['overview', 'summary', 'teachers', 'holidays', 'rates', 'accounts']).indexOf(S.tab) >= 0) S.tab = admin ? 'overview' : 'lessons';
   const pg = PAGES[S.tab];
   const pendAcc = admin ? S.data.accounts.filter(a => a.status === 'pending').length : 0;
   const pendCmp = admin ? S.data.complaints.filter(c => c.status === 'Pending').length : 0;
   const dot = k => (k === 'accounts' && pendAcc) ? `<span class="dot">${pendAcc}</span>` : (k === 'complaints' && pendCmp) ? `<span class="dot">${pendCmp}</span>` : '';
-  const views = { overview: vOverview, teachers: vTeachers, lessons: vLessons, payments: vPayments, holidays: vHolidays, rates: vRates, accounts: vAccounts, complaints: vComplaints, account: vAccount };
+  const views = { overview: vOverview, summary: vSummary, teachers: vTeachers, lessons: vLessons, payments: vPayments, holidays: vHolidays, rates: vRates, accounts: vAccounts, complaints: vComplaints, account: vAccount };
   const name = admin ? 'Administrator' : (S.user.teacherName || S.user.username);
   const payChip = `<span class="badge brass" title="Common payday set by the administrator">${ic('calendar')} Payday: ${esc(paydayLabel())}</span>`;
   return `<div class="app ${S.nav ? 'nav-open' : ''}">
@@ -568,6 +630,7 @@ function card(t, i, admin) {
   const sorted = [...c.L].sort((a, b) => String(b.date).localeCompare(String(a.date)));
   const open = !!S.exp[i], list = open ? sorted : sorted.slice(0, 5);
   const figs = [{ v: c.L.length, l: 'Lessons' }, { v: c.wd, l: 'Weekday' }, { v: c.we, l: 'Weekend' }];
+  if (c.hd) figs.push({ v: c.hd, l: 'Holiday' });
   if (show) figs.push({ v: money(c.earned), l: 'Earned' }, { v: money(c.paid), l: 'Paid' }, { v: money(c.balance), l: 'Balance', c: c.balance > 0 ? 'due' : '' });
   const row = l => { const p = dparts(l.date); return `<li>
       <div class="dt"><b>${p ? p.d : '?'}</b><span>${p ? p.m : ''}</span></div>
@@ -596,12 +659,13 @@ function card(t, i, admin) {
 function vLessons() {
   const d = S.data, r = d.rates, idx = sortedIdx(), s = summary(idx, false);
   const figs = [{ v: s.l, l: 'Lessons' }, { v: s.wd, l: 'Weekday' }, { v: s.we, l: 'Weekend' }];
+  if (s.hd) figs.push({ v: s.hd, l: 'Holiday' });
   if (s.vis) figs.push({ v: money(s.e), l: 'Earned' }, { v: money(s.p), l: 'Paid' }, { v: money(s.e - s.p), l: 'Balance', c: s.e - s.p > 0 ? 'due' : '' });
   return pageHead(`<button class="btn ghost" data-act="print">${ic('printer')}Print statement</button>`) +
     `<div class="print-head"><h2>GTMC lesson statement</h2><p>${esc(S.user.teacherName)}, ${esc(S.month === 'all' ? 'all time' : monthLabel(S.month))}</p></div>` +
     `<div class="note">${ic('calendar')}<span>Common payday for everyone: <b>${esc(paydayLabel())}</b>. Set by the administrator.</span></div>` +
     (d.teachers.length ? strip(figs) : '') +
-    (s.vis ? `<div class="note">${ic('info')}<span>Weekday lessons pay ${money(r.weekday)} and weekend lessons ${money(r.weekend)}. A class can have up to ${r.maxLessonsPerDay} lesson${r.maxLessonsPerDay > 1 ? 's' : ''} a day.</span></div>` : '') +
+    (s.vis ? `<div class="note">${ic('info')}<span>Weekday lessons pay ${money(r.weekday)} and weekend lessons ${money(r.weekend)}${cfg().hol != null ? ', holiday lessons ' + money(cfg().hol) : ''}. A class can have up to ${r.maxLessonsPerDay} lesson${r.maxLessonsPerDay > 1 ? 's' : ''} a day.</span></div>` : '') +
     (d.teachers.length ? `<div class="cards">${idx.map(i => card(d.teachers[i], i, false)).join('')}</div>`
       : `<div class="panel">${empty('inbox', 'No assignments yet', 'Ask the administrator to register your subject and class under the name "' + S.user.teacherName + '".')}</div>`);
 }
@@ -620,14 +684,14 @@ function vOverview() {
     `<div class="note">${ic('calendar')}<span>Common payday: <b>${esc(paydayLabel())}</b>.</span><button class="btn s" data-act="setPayday">Change</button></div>` +
     strip([{ v: rows.length, l: 'Assignments' }, { v: s.l, l: 'Lessons' }, { v: money(s.e), l: 'Earned' }, { v: money(s.p), l: 'Paid' }, { v: money(out), l: 'Outstanding', c: out > 0 ? 'due' : '' }]) +
     `<div class="panel tw">${rows.length ? `<table class="tbl">
-      <thead><tr><th>Teacher</th><th>Subject</th><th>Class</th><th class="num">Weekday</th><th class="num">Weekend</th><th class="num">Earned</th><th class="num">Paid</th><th>Last payout</th><th>Settled</th><th class="num">Balance</th></tr></thead>
+      <thead><tr><th>Teacher</th><th>Subject</th><th>Class</th><th class="num">Weekday</th><th class="num">Weekend</th><th class="num">Holiday</th><th class="num">Earned</th><th class="num">Paid</th><th>Last payout</th><th>Settled</th><th class="num">Balance</th></tr></thead>
       <tbody>${rows.map(x => { const pct = x.c.earned > 0 ? Math.min(100, Math.round(x.c.paid / x.c.earned * 100)) : (x.c.paid > 0 ? 100 : 0); return `<tr>
         <td><div class="who">${avatar(x.t.teacher)}${esc(x.t.teacher)}</div></td><td>${esc(x.t.subject)}</td><td>${esc(x.t.class)}</td>
-        <td class="num">${x.c.wd}</td><td class="num">${x.c.we}</td><td class="num">${money(x.c.earned)}</td><td class="num">${money(x.c.paid)}</td>
+        <td class="num">${x.c.wd}</td><td class="num">${x.c.we}</td><td class="num">${x.c.hd}</td><td class="num">${money(x.c.earned)}</td><td class="num">${money(x.c.paid)}</td>
         <td>${x.last ? `<span class="badge brass">${fdt(x.last.date)}</span>` : '<span class="muted">—</span>'}</td>
         <td><div class="bar" title="${pct}% paid"><i style="width:${pct}%"></i></div></td>
         <td class="num ${x.c.balance > 0 ? 'due' : ''}">${money(x.c.balance)}</td></tr>`; }).join('')}</tbody>
-      <tfoot><tr><td colspan="3">Total</td><td class="num">${s.wd}</td><td class="num">${s.we}</td><td class="num">${money(s.e)}</td><td class="num">${money(s.p)}</td><td></td><td></td><td class="num">${money(out)}</td></tr></tfoot>
+      <tfoot><tr><td colspan="3">Total</td><td class="num">${s.wd}</td><td class="num">${s.we}</td><td class="num">${s.hd}</td><td class="num">${money(s.e)}</td><td class="num">${money(s.p)}</td><td></td><td></td><td class="num">${money(out)}</td></tr></tfoot>
     </table>` : empty('users', 'No assignments yet', 'Register a teacher, subject and class to start logging lessons.', `<button class="btn brass" data-act="newAsg">${ic('plus')}New assignment</button>`)}</div>`;
 }
 
@@ -671,7 +735,7 @@ function vPayments() {
 }
 
 function vHolidays() {
-  const list = [...S.data.holidays].sort((a, b) => String(b.date).localeCompare(String(a.date)));
+  const list = S.data.holidays.filter(h => !isCfg(h)).sort((a, b) => String(b.date).localeCompare(String(a.date)));
   return pageHead(`<button class="btn brass" data-act="newHol">${ic('plus')}Add holiday</button>`) +
     `<div class="panel tw">${list.length ? `<table class="tbl"><thead><tr><th>Date</th><th>Note</th><th></th></tr></thead>
       <tbody>${list.map(h => `<tr><td>${fmtDate(h.date)}</td><td class="muted">${esc(h.note)}</td><td class="num"><button class="ib danger" data-act="delHoliday" data-row="${h.rowIndex}" aria-label="Delete holiday">${ic('trash')}</button></td></tr>`).join('')}</tbody></table>`
@@ -679,18 +743,24 @@ function vHolidays() {
 }
 
 function vRates() {
-  const r = S.data.rates;
+  const r = S.data.rates, c = cfg();
   const dayOpts = Array.from({length: 28}, (_, i) => i + 1)
     .map(d => `<option value="${d}" ${paydayValue() === d ? 'selected' : ''}>${d}${d === 1 ? 'st' : d === 2 ? 'nd' : d === 3 ? 'rd' : 'th'}</option>`).join('');
+  const dv = v => (v == null ? '<span class="muted">Default</span>' : money(v));
+  const names = teacherNameOptions();
   return pageHead() + `<form class="panel pad" data-form="rates" style="max-width:620px">
     <div class="grid2">
       <label class="fld"><span>Weekday rate per lesson</span><input class="in" name="rateWeekday" type="number" min="0" step="any" value="${r.weekday}" required></label>
       <label class="fld"><span>Weekend rate per lesson</span><input class="in" name="rateWeekend" type="number" min="0" step="any" value="${r.weekend}" required></label>
+      <label class="fld"><span>Holiday rate per lesson</span><input class="in" name="holidayRate" type="number" min="0" step="any" value="${c.hol == null ? '' : c.hol}" placeholder="Not set"><small>Used for lessons on dates in the Holidays list. Leave blank to pay normal rates.</small></label>
       <label class="fld"><span>Most lessons per class per day</span><select class="in" name="maxLessonsPerDay"><option value="1" ${r.maxLessonsPerDay === 1 ? 'selected' : ''}>1</option><option value="2" ${r.maxLessonsPerDay === 2 ? 'selected' : ''}>2</option></select></label>
       <label class="fld"><span>Currency symbol</span><input class="in" name="currency" value="${esc(r.currency)}" maxlength="4" required></label>
       <label class="fld"><span>Common payday (day of month)</span><select class="in" name="paymentDay">${dayOpts}</select><small>Every teacher sees this same payday in their browser.</small></label>
     </div>
-    <button class="btn brass">Save rates</button></form>`;
+    <button class="btn brass">Save rates</button></form>
+    <div class="panel tw"><div class="pad"><h3>Special teacher rates</h3><p class="muted sm">Override the default rates for individual teachers. Blank fields use the defaults above.</p></div>
+    ${names.length ? `<table class="tbl"><thead><tr><th>Teacher</th><th class="num">Weekday</th><th class="num">Weekend</th><th class="num">Holiday</th><th></th></tr></thead><tbody>
+    ${names.map(n => { const s = c.sp[n] || {}; return `<tr><td><div class="who">${avatar(n)}${esc(n)}</div></td><td class="num">${dv(s.wd)}</td><td class="num">${dv(s.we)}</td><td class="num">${dv(s.hol)}</td><td class="num"><button class="btn ghost s" data-act="editSpecial" data-name="${esc(n)}">Edit</button></td></tr>`; }).join('')}</tbody></table>` : empty('users', 'No teachers yet', 'Teachers appear here once they have an assignment.')}</div>`;
 }
 
 function vAccounts() {
@@ -736,13 +806,43 @@ function vAccount() {
     <button class="btn brass">Update password</button></form>`;
 }
 
+/* ============ SUMMARY (date range) ============ */
+const inRange = d => { d = String(d).slice(0, 10); return d >= S.from && d <= S.to; };
+function sumRows() {
+  return sortedIdx().map(i => {
+    const t = S.data.teachers[i], L = t.lessons.filter(l => inRange(l.date)), x = tally(t, L);
+    const paid = S.data.payments.filter(p => sameAsg(p, t) && inRange(p.date)).reduce((a, p) => a + p.amount, 0);
+    return { t: t, n: L.length, wd: x.wd, we: x.we, hd: x.hd, earned: x.earned, paid: paid, bal: x.earned - paid };
+  }).filter(r => r.n || r.paid);
+}
+function vSummary() {
+  const rows = sumRows(), g = {};
+  rows.forEach(r => { (g[r.t.teacher] = g[r.t.teacher] || []).push(r); });
+  const add = a => a.reduce((o, r) => ({ n: o.n + r.n, wd: o.wd + r.wd, we: o.we + r.we, hd: o.hd + r.hd, earned: o.earned + r.earned, paid: o.paid + r.paid, bal: o.bal + r.bal }), { n: 0, wd: 0, we: 0, hd: 0, earned: 0, paid: 0, bal: 0 });
+  const cells = x => `<td class="num">${x.n}</td><td class="num">${x.wd}</td><td class="num">${x.we}</td><td class="num">${x.hd}</td><td class="num">${money(x.earned)}</td><td class="num">${money(x.paid)}</td><td class="num ${x.bal > 0 ? 'due' : ''}">${money(x.bal)}</td>`;
+  const T = add(rows);
+  const body = Object.keys(g).map(n => `<tr class="grow"><td><div class="who">${avatar(n)}<b>${esc(n)}</b></div></td>${cells(add(g[n]))}</tr>` +
+    g[n].map(r => `<tr class="srow"><td>${esc(r.t.subject)} · ${esc(r.t.class)}</td>${cells(r)}</tr>`).join('')).join('');
+  const pre = (p, l) => `<button class="btn ghost s" data-act="sumPreset" data-p="${p}">${l}</button>`;
+  return pageHead(`<button class="btn ghost" data-act="sumCsv">${ic('copy')}Export CSV</button><button class="btn ghost" data-act="print">${ic('printer')}Print</button>`) +
+    `<div class="print-head"><h2>GTMC summary</h2><p>${fmtDate(S.from)} to ${fmtDate(S.to)}</p></div>` +
+    `<div class="panel pad filter"><div class="grid2" style="flex:1;max-width:420px">
+      <label class="fld"><span>From</span><input class="in" type="date" data-sum="from" value="${esc(S.from)}"></label>
+      <label class="fld"><span>To</span><input class="in" type="date" data-sum="to" value="${esc(S.to)}"></label></div>
+      <div class="presets">${pre('this', 'This month')}${pre('last', 'Last month')}${pre('year', 'This year')}${pre('all', 'All time')}</div></div>` +
+    strip([{ v: T.n, l: 'Lessons' }, { v: T.hd, l: 'Holiday lessons' }, { v: money(T.earned), l: 'Earned' }, { v: money(T.paid), l: 'Paid in range' }, { v: money(T.bal), l: 'Net', c: T.bal > 0 ? 'due' : '' }]) +
+    `<div class="note">${ic('info')}<span>Lessons are counted by lesson date and payments by the date paid. Net is earned minus paid within this range.</span></div>` +
+    `<div class="panel tw">${rows.length ? `<table class="tbl sumtbl"><thead><tr><th>Teacher / assignment</th><th class="num">Lessons</th><th class="num">Weekday</th><th class="num">Weekend</th><th class="num">Holiday</th><th class="num">Earned</th><th class="num">Paid</th><th class="num">Net</th></tr></thead>
+      <tbody>${body}</tbody><tfoot><tr><td>Total</td>${cells(T)}</tr></tfoot></table>` : empty('chart', 'Nothing in this range', 'Try a wider date range.')}</div>`;
+}
+
 /* ============ MODAL FORMS ============ */
 let lessonIdx = -1;
 function lessonInfoHtml(t, date, admin) {
   if (!date) return '';
   const r = S.data.rates, wk = isWeekend(date), n = t.lessons.filter(l => l.date === date).length, hol = holMap();
   const show = admin || t.showAmount;
-  let h = `<div class="info-row"><span class="badge ${wk ? 'brass' : ''}">${wk ? 'Weekend' : 'Weekday'}</span>${show ? `<span class="badge ok">${money(wk ? r.weekend : r.weekday)} per lesson</span>` : ''}<span class="badge plain">${n} of ${r.maxLessonsPerDay} logged that day</span></div>`;
+  let h = `<div class="info-row"><span class="badge ${wk ? 'brass' : ''}">${wk ? 'Weekend' : 'Weekday'}</span>${show ? `<span class="badge ok">${money(rateFor(t, { date: date, dayType: wk ? 'weekend' : 'weekday' }))} per lesson</span>` : ''}<span class="badge plain">${n} of ${r.maxLessonsPerDay} logged that day</span></div>`;
   if (n >= r.maxLessonsPerDay) h += `<div class="note bad">${ic('alert')}<span>This class already has the most lessons allowed on that date.</span></div>`;
   if (hol[date] !== undefined) h += `<div class="note warn">${ic('alert')}<span>That date is a holiday${hol[date] ? ' (' + esc(hol[date]) + ')' : ''}. You can still log it.</span></div>`;
   return h;
@@ -869,15 +969,23 @@ const FORMS = {
   },
   addTeacher(f) { return mutate('registerTeacher', fd(f), 'Assignment registered.'); },
   holiday(f) { return mutate('addHoliday', fd(f), 'Holiday added.'); },
-  rates(f) {
+  async rates(f) {
     const v = fd(f);
-    return mutate('updateRates', {
-      rateWeekday: v.rateWeekday,
-      rateWeekend: v.rateWeekend,
-      maxLessonsPerDay: v.maxLessonsPerDay,
-      currency: v.currency,
-      paymentDay: v.paymentDay
+    const j = await mutate('updateRates', {
+      rateWeekday: v.rateWeekday, rateWeekend: v.rateWeekend,
+      maxLessonsPerDay: v.maxLessonsPerDay, currency: v.currency, paymentDay: v.paymentDay
     }, 'Rates saved.');
+    if (j) {
+      const c = cfg(), h = v.holidayRate === '' ? null : Number(v.holidayRate);
+      if (h !== c.hol) await saveCfg({ hol: h, sp: c.sp }, 'Rates saved.');
+    }
+  },
+  special(f) {
+    const v = fd(f), c = cfg(), n = f.dataset.name, e = {};
+    ['wd', 'we', 'hol'].forEach(k => { if (v[k] !== '' && !isNaN(v[k])) e[k] = Number(v[k]); });
+    const sp = Object.assign({}, c.sp);
+    if (Object.keys(e).length) sp[n] = e; else delete sp[n];
+    return saveCfg({ hol: c.hol, sp: sp }, 'Special rates saved.');
   },
   payment(f) {
     const v = fd(f), t = S.data.teachers[Number(v.idx)];
@@ -899,11 +1007,8 @@ const FORMS = {
     const day = Number(document.querySelector('select[name="payDay"]').value) || 25;
     if (day < 1 || day > 28) return toast('Pick a day between 1 and 28.', true);
     return mutate('updateRates', {
-      rateWeekday: S.data.rates.weekday,
-      rateWeekend: S.data.rates.weekend,
-      maxLessonsPerDay: S.data.rates.maxLessonsPerDay,
-      currency: S.data.rates.currency,
-      paymentDay: day
+      rateWeekday: S.data.rates.weekday, rateWeekend: S.data.rates.weekend,
+      maxLessonsPerDay: S.data.rates.maxLessonsPerDay, currency: S.data.rates.currency, paymentDay: day
     }, 'Payday saved for everyone.');
   }
 };
@@ -956,6 +1061,31 @@ const ACTS = {
     refreshMulti();
   },
   setPayday() { openPaydayModal(); },
+  editSpecial(el) {
+    const n = el.dataset.name, s = cfg().sp[n] || {};
+    const fld = (k, l) => `<label class="fld"><span>${l} rate per lesson</span><input class="in" name="${k}" type="number" min="0" step="any" value="${s[k] == null ? '' : s[k]}" placeholder="Use default"></label>`;
+    formModal('Special rates', n, fld('wd', 'Weekday') + fld('we', 'Weekend') + fld('hol', 'Holiday'), 'Save', 'special', `data-name="${esc(n)}"`);
+  },
+  sumPreset(el) {
+    const p = el.dataset.p, n = new Date(), y = n.getFullYear(), m = n.getMonth();
+    const f = d => d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+    if (p === 'this') { S.from = f(new Date(y, m, 1)); S.to = today(); }
+    else if (p === 'last') { S.from = f(new Date(y, m - 1, 1)); S.to = f(new Date(y, m, 0)); }
+    else if (p === 'year') { S.from = y + '-01-01'; S.to = today(); }
+    else {
+      const ds = [].concat(...S.data.teachers.map(t => t.lessons.map(l => String(l.date).slice(0, 10))), S.data.payments.map(x => String(x.date).slice(0, 10))).sort();
+      S.from = ds[0] || today(); S.to = (ds.length && ds[ds.length - 1] > today()) ? ds[ds.length - 1] : today();
+    }
+    render();
+  },
+  sumCsv() {
+    const q = v => '"' + String(v).replace(/"/g, '""') + '"';
+    const out = [['Teacher', 'Subject', 'Class', 'Lessons', 'Weekday', 'Weekend', 'Holiday', 'Earned', 'Paid', 'Net']]
+      .concat(sumRows().map(r => [r.t.teacher, r.t.subject, r.t.class, r.n, r.wd, r.we, r.hd, r.earned, r.paid, r.bal]));
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([out.map(r => r.map(q).join(',')).join('\n')], { type: 'text/csv' }));
+    a.download = 'gtmc-summary-' + S.from + '-to-' + S.to + '.csv'; a.click();
+  },
   newAsg() {
     const names = Array.from(new Set(S.data.teachers.map(t => t.teacher)));
     formModal('New assignment', 'Link a teacher to a subject and class.',
@@ -1028,6 +1158,11 @@ document.addEventListener('click', e => {
 });
 document.addEventListener('change', e => {
   if (e.target.dataset && e.target.dataset.sel === 'month') { S.month = e.target.value; render(); }
+  if (e.target.dataset && e.target.dataset.sum) {
+    S[e.target.dataset.sum] = e.target.value;
+    if (S.from > S.to) { const x = S.from; S.from = S.to; S.to = x; }
+    render();
+  }
 });
 document.addEventListener('input', e => {
   const t = e.target;
