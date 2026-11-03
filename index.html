@@ -395,6 +395,16 @@ function calc(t) {
   const paid = S.data.payments.filter(p => sameAsg(p, t) && (all || p.month === S.month)).reduce((a, p) => a + p.amount, 0);
   return { L: L, wd: wd, we: we, earned: earned, paid: paid, balance: earned - paid };
 }
+
+/* Latest payment (by paid date) for an assignment, within the current period filter. */
+function lastPayment(t) {
+  const all = S.month === 'all';
+  const list = S.data.payments
+    .filter(p => sameAsg(p, t) && (all || p.month === S.month))
+    .sort((a, b) => String(b.date).localeCompare(String(a.date)));
+  return list[0] || null;
+}
+
 function summary(idxs, admin) {
   const o = { l: 0, wd: 0, we: 0, e: 0, p: 0, vis: false };
   idxs.forEach(i => { const t = S.data.teachers[i], c = calc(t); o.l += c.L.length; o.wd += c.wd; o.we += c.we; if (admin || t.showAmount) { o.vis = true; o.e += c.earned; o.p += c.paid; } });
@@ -411,6 +421,15 @@ function sortedIdx() {
     const x = S.data.teachers[a], y = S.data.teachers[b];
     return (x.teacher + x.class + x.subject).localeCompare(y.teacher + y.class + y.subject);
   });
+}
+
+/* Distinct teacher names available for account linking:
+   from existing assignments + from existing teacher accounts. */
+function teacherNameOptions() {
+  const set = new Set();
+  S.data.teachers.forEach(t => { if (t.teacher) set.add(t.teacher); });
+  (S.data.accounts || []).forEach(a => { if (a.teacherName) set.add(a.teacherName); });
+  return Array.from(set).sort((a, b) => a.localeCompare(b));
 }
 
 /* ============ LAYOUT ============ */
@@ -476,7 +495,7 @@ function shell() {
       <header class="topbar">
         <button class="ib line menu-btn" data-act="menu" aria-label="Open menu">${ic('menu')}</button>
         <span class="today">${new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</span>
-        <div class="tb-r">${pg.p ? periodSel() : ''}<button class="ib line" data-act="refresh" aria-label="Refresh data" title="Refresh">${ic('refresh')}</button></div>
+        <div class="tb-r">${pg.p ? periodSel() : ''}<button class="ib line" data-act="refresh" aria-label="Refresh data" title="Refresh">${ic('refresh')}</button><button class="ib line" data-act="logout" aria-label="Sign out" title="Sign out">${ic('logout')}</button></div>
       </header>
       <main class="page">${views[S.tab]()}</main>
       <div class="foot">Greater Tomorrow Model College, Ado-Ekiti</div>
@@ -521,6 +540,7 @@ function authView() {
 /* ============ VIEWS ============ */
 function card(t, i, admin) {
   const c = calc(t), show = admin || t.showAmount, hol = holMap();
+  const last = lastPayment(t);
   const sorted = [...c.L].sort((a, b) => String(b.date).localeCompare(String(a.date)));
   const open = !!S.exp[i], list = open ? sorted : sorted.slice(0, 5);
   const figs = [{ v: c.L.length, l: 'Lessons' }, { v: c.wd, l: 'Weekday' }, { v: c.we, l: 'Weekend' }];
@@ -530,12 +550,16 @@ function card(t, i, admin) {
       <div class="dn">${p ? p.w : esc(l.date)}<small>${p ? p.y : ''}</small></div>
       <div class="tg"><span class="badge ${l.dayType === 'weekend' ? 'brass' : ''}">${l.dayType === 'weekend' ? 'Weekend' : 'Weekday'}</span>${hol[l.date] !== undefined ? '<span class="badge warn">Holiday</span>' : ''}</div>
       ${admin ? `<button class="ib danger" data-act="delLesson" data-row="${l.rowIndex}" aria-label="Delete lesson">${ic('trash')}</button>` : ''}</li>`; };
+  const lastLine = (show && last)
+    ? `<div class="muted sm" style="padding:8px 18px 0">Last payout: <b>${fdt(last.date)}</b> — ${money(last.amount)}</div>`
+    : (show ? `<div class="muted sm" style="padding:8px 18px 0">No payouts recorded for this period.</div>` : '');
   return `<article class="panel">
     <div class="asg-h">
       <div><h3>${esc(t.subject)}</h3><div class="tags"><span class="badge plain">${esc(t.class)}</span>${admin ? `<span class="badge ${t.showAmount ? 'ok' : 'warn'}">${t.showAmount ? 'Amounts visible' : 'Amounts hidden'}</span>` : ''}</div></div>
       ${admin ? `<div class="asg-act"><button class="ib" data-act="toggleVis" data-idx="${i}" aria-label="${t.showAmount ? 'Hide amounts from teacher' : 'Show amounts to teacher'}" title="${t.showAmount ? 'Hide amounts from teacher' : 'Show amounts to teacher'}">${ic(t.showAmount ? 'eye' : 'eyeoff')}</button><button class="ib danger" data-act="delTeacher" data-idx="${i}" aria-label="Delete assignment" title="Delete assignment">${ic('trash')}</button></div>` : ''}
     </div>
     ${strip(figs, 'mini')}
+    ${lastLine}
     ${sorted.length ? `<ul class="reg">${list.map(row).join('')}</ul>` : '<div class="none">No lessons logged in this period.</div>'}
     ${sorted.length > 5 ? `<button class="more" data-act="expand" data-idx="${i}">${open ? 'Show fewer' : 'Show all ' + sorted.length + ' lessons'}</button>` : ''}
     ${admin ? `<div class="asg-f"><button class="btn brass" data-act="logLesson" data-idx="${i}">${ic('plus')}Log a lesson</button></div>` : ''}
@@ -555,7 +579,10 @@ function vLessons() {
 }
 
 function vOverview() {
-  const d = S.data, idx = sortedIdx(), rows = idx.map(i => ({ t: d.teachers[i], c: calc(d.teachers[i]) }));
+  const d = S.data, idx = sortedIdx(), rows = idx.map(i => {
+    const t = d.teachers[i];
+    return { t: t, c: calc(t), last: lastPayment(t) };
+  });
   const s = summary(idx, true);
   const pa = d.accounts.filter(a => a.status === 'pending').length, pc = d.complaints.filter(c => c.status === 'Pending').length;
   const out = s.e - s.p;
@@ -564,13 +591,14 @@ function vOverview() {
     (pc ? `<div class="note warn">${ic('message')}<span>${pc} complaint${pc > 1 ? 's are' : ' is'} waiting for a response.</span><button class="btn s" data-act="tab" data-tab="complaints">Open</button></div>` : '') +
     strip([{ v: rows.length, l: 'Assignments' }, { v: s.l, l: 'Lessons' }, { v: money(s.e), l: 'Earned' }, { v: money(s.p), l: 'Paid' }, { v: money(out), l: 'Outstanding', c: out > 0 ? 'due' : '' }]) +
     `<div class="panel tw">${rows.length ? `<table class="tbl">
-      <thead><tr><th>Teacher</th><th>Subject</th><th>Class</th><th class="num">Weekday</th><th class="num">Weekend</th><th class="num">Earned</th><th class="num">Paid</th><th>Settled</th><th class="num">Balance</th></tr></thead>
+      <thead><tr><th>Teacher</th><th>Subject</th><th>Class</th><th class="num">Weekday</th><th class="num">Weekend</th><th class="num">Earned</th><th class="num">Paid</th><th>Last payout</th><th>Settled</th><th class="num">Balance</th></tr></thead>
       <tbody>${rows.map(x => { const pct = x.c.earned > 0 ? Math.min(100, Math.round(x.c.paid / x.c.earned * 100)) : (x.c.paid > 0 ? 100 : 0); return `<tr>
         <td><div class="who">${avatar(x.t.teacher)}${esc(x.t.teacher)}</div></td><td>${esc(x.t.subject)}</td><td>${esc(x.t.class)}</td>
         <td class="num">${x.c.wd}</td><td class="num">${x.c.we}</td><td class="num">${money(x.c.earned)}</td><td class="num">${money(x.c.paid)}</td>
+        <td>${x.last ? `<span class="badge brass">${fdt(x.last.date)}</span>` : '<span class="muted">—</span>'}</td>
         <td><div class="bar" title="${pct}% paid"><i style="width:${pct}%"></i></div></td>
         <td class="num ${x.c.balance > 0 ? 'due' : ''}">${money(x.c.balance)}</td></tr>`; }).join('')}</tbody>
-      <tfoot><tr><td colspan="3">Total</td><td class="num">${s.wd}</td><td class="num">${s.we}</td><td class="num">${money(s.e)}</td><td class="num">${money(s.p)}</td><td></td><td class="num">${money(out)}</td></tr></tfoot>
+      <tfoot><tr><td colspan="3">Total</td><td class="num">${s.wd}</td><td class="num">${s.we}</td><td class="num">${money(s.e)}</td><td class="num">${money(s.p)}</td><td></td><td></td><td class="num">${money(out)}</td></tr></tfoot>
     </table>` : empty('users', 'No assignments yet', 'Register a teacher, subject and class to start logging lessons.', `<button class="btn brass" data-act="newAsg">${ic('plus')}New assignment</button>`)}</div>`;
 }
 
@@ -790,7 +818,7 @@ const ACTS = {
     formModal('Record a payment', 'Money paid to a teacher for one assignment.',
       `<label class="fld"><span>Assignment</span><select class="in" name="idx" required>${sortedIdx().map(i => { const t = S.data.teachers[i]; return `<option value="${i}">${esc(t.teacher)}: ${esc(t.subject)}, ${esc(t.class)}</option>`; }).join('')}</select></label>
        <div class="grid2"><label class="fld"><span>Amount</span><input class="in" name="amount" type="number" min="1" step="any" required></label>
-       <label class="fld"><span>Date paid</span><input class="in" name="date" type="date" value="${today()}" required></label></div>
+       <label class="fld"><span>Date paid</span><input class="in" name="date" type="date" value="${today()}" required><small>This is the payout date shown on the dashboards.</small></label></div>
        <label class="fld"><span>Payment is for</span><input class="in" name="month" type="month" value="${thisMonth()}" required></label>
        <label class="fld"><span>Note (optional)</span><input class="in" name="note"></label>`, 'Save payment', 'payment');
   },
@@ -800,8 +828,15 @@ const ACTS = {
        <label class="fld"><span>Name (optional)</span><input class="in" name="note" placeholder="For example, Independence Day"></label>`, 'Add holiday', 'holiday');
   },
   newAcc() {
+    const opts = teacherNameOptions();
+    const picker = opts.length
+      ? `<label class="fld"><span>Teacher name</span><select class="in" name="teacherName" required>
+           <option value="" disabled selected>Choose a teacher…</option>
+           ${opts.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('')}
+         </select><small>Only names already in the system appear here. Add the teacher as an assignment first if missing.</small></label>`
+      : `<label class="fld"><span>Teacher name</span><input class="in" name="teacherName" required><small>No teacher names exist yet. Type the name exactly as it will appear on their assignments.</small></label>`;
     formModal('Create a teacher account', 'The account is active straight away.',
-      `<label class="fld"><span>Teacher name</span><input class="in" name="teacherName" required><small>Must match the name on the teacher's assignments.</small></label>
+      `${picker}
        <label class="fld"><span>Username</span><input class="in" name="username" required autocapitalize="none" pattern="[A-Za-z0-9._\\-]{4,30}"></label>
        <label class="fld"><span>Password</span><input class="in" name="password" type="text" required minlength="8"><small>At least 8 characters.</small></label>`, 'Create account', 'createAccount');
   },
