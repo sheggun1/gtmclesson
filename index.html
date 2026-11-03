@@ -153,7 +153,7 @@ textarea.in{min-height:96px;resize:vertical}
 .reg .tg{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
 .more{display:block;width:100%;border:0;border-top:1px solid var(--rule);background:#fafcff;color:var(--info);font-weight:600;padding:10px;cursor:pointer}
 .more:hover{background:#eef3fb}
-.asg-f{padding:14px 18px;border-top:1px solid var(--rule);display:flex;gap:10px;align-items:center}
+.asg-f{padding:14px 18px;border-top:1px solid var(--rule);display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .none{padding:18px;border-top:1px solid var(--rule);color:var(--mut)}
 .cmp-h{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
 .cmp-h h3{font-size:16px}
@@ -161,6 +161,23 @@ textarea.in{min-height:96px;resize:vertical}
 .reply{border-left:3px solid var(--brass);background:var(--brass-bg);padding:9px 12px;border-radius:0 8px 8px 0;margin-top:10px;white-space:pre-wrap}
 .cmp-f{margin-top:14px;padding-top:14px;border-top:1px solid var(--rule)}
 .print-head{display:none}
+
+/* ---------- calendar ---------- */
+.cal{border:1px solid var(--rule);border-radius:10px;overflow:hidden;margin-bottom:12px}
+.cal-h{display:flex;align-items:center;gap:8px;padding:10px 12px;background:#fafcff;border-bottom:1px solid var(--rule)}
+.cal-h b{flex:1;font-size:14px;text-align:center}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr)}
+.cal-grid .cdow{font-size:11px;font-weight:600;color:var(--mut);text-align:center;padding:6px 0;background:#fafcff;border-bottom:1px solid var(--rule)}
+.cal-day{border:0;background:#fff;padding:10px 0;font-size:14px;text-align:center;cursor:pointer;border-bottom:1px solid var(--rule);position:relative}
+.cal-day:hover{background:#eef3fb}
+.cal-day.mut{color:#b9c3d6}
+.cal-day.sel{background:var(--brass);color:#fff;font-weight:700}
+.cal-day.sel:hover{background:var(--brass-d)}
+.cal-day.hol::after{content:"";position:absolute;left:50%;bottom:4px;transform:translateX(-50%);width:4px;height:4px;border-radius:50%;background:var(--margin)}
+.cal-day.limit{background:#fde4e1;color:var(--bad);text-decoration:line-through}
+.cal-day.limit.sel{background:var(--bad);color:#fff}
+.cal-sel{font-size:13px;color:var(--mut);margin-bottom:10px}
+.cal-sel b{color:var(--ink)}
 
 /* ---------- dialogs ---------- */
 #modal{position:fixed;inset:0;z-index:100;display:none;align-items:center;justify-content:center;padding:16px}
@@ -243,7 +260,6 @@ body.busy button[type=submit],body.busy .btn.primary{opacity:.65;pointer-events:
 
 <script>
 /* ============ CONFIG ============ */
-// Paste your Apps Script Web App URL (ends with /exec)
 const API_URL = 'https://script.google.com/macros/s/AKfycby6M7B83PoWGtmbcObBfN9XaTApW172JEmmiIuQP0vvR9uKTtG6t4IBtXHkuOSQjebg/exec';
 
 /* ============ ICONS ============ */
@@ -271,7 +287,9 @@ const ICONS = {
   search:'<circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/>',
   copy:'<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>',
   inbox:'<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.5 5.1 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.5-6.9A2 2 0 0 0 16.8 4H7.2a2 2 0 0 0-1.7 1.1z"/>',
-  info:'<circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>'
+  info:'<circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>',
+  chevL:'<path d="m15 18-6-6 6-6"/>',
+  chevR:'<path d="m9 18 6-6-6-6"/>'
 };
 const ic = (n, c) => `<svg class="ic${c ? ' ' + c : ''}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[n] || ''}</svg>`;
 
@@ -294,6 +312,13 @@ const AVC = ['#1d4fa3', '#0f766e', '#6d4bc4', '#a9741f', '#b53a5c', '#475569'];
 const initials = n => { const p = String(n || '?').trim().split(/\s+/); return ((p[0] || '?')[0] + (p.length > 1 ? p[p.length - 1][0] : '')).toUpperCase(); };
 const avatar = (n, cls) => { let h = 0; for (const ch of String(n)) h = (h * 31 + ch.charCodeAt(0)) % 997; return `<span class="av ${cls || ''}" style="background:${AVC[h % AVC.length]}">${esc(initials(n))}</span>`; };
 
+// Common payday — now read from backend Config!PaymentDay, synced for everyone
+const paydayValue = () => {
+  const r = S.data && S.data.rates;
+  return (r && Number(r.paymentDay)) || 25;
+};
+const paydayLabel = () => 'Day ' + paydayValue() + ' of every month';
+
 let tt;
 function toast(m, bad) {
   const t = $('#toast');
@@ -304,7 +329,10 @@ function toast(m, bad) {
 }
 
 /* ============ STATE ============ */
-const S = { token: loadTok(), user: null, data: null, tab: null, month: thisMonth(), auth: 'login', loading: true, nav: false, exp: {}, q: '' };
+const S = {
+  token: loadTok(), user: null, data: null, tab: null, month: thisMonth(),
+  auth: 'login', loading: true, nav: false, exp: {}, q: ''
+};
 
 /* ============ API ============ */
 async function api(action, payload) {
@@ -312,7 +340,6 @@ async function api(action, payload) {
   const body = JSON.stringify(Object.assign({ action: action, token: S.token }, payload || {}));
   let res;
   try {
-    // text/plain avoids the CORS preflight that Apps Script cannot answer
     res = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: body });
   } catch (e) {
     throw new Error('Cannot reach the server. Check your internet connection.');
@@ -396,7 +423,6 @@ function calc(t) {
   return { L: L, wd: wd, we: we, earned: earned, paid: paid, balance: earned - paid };
 }
 
-/* Latest payment (by paid date) for an assignment, within the current period filter. */
 function lastPayment(t) {
   const all = S.month === 'all';
   const list = S.data.payments
@@ -422,9 +448,6 @@ function sortedIdx() {
     return (x.teacher + x.class + x.subject).localeCompare(y.teacher + y.class + y.subject);
   });
 }
-
-/* Distinct teacher names available for account linking:
-   from existing assignments + from existing teacher accounts. */
 function teacherNameOptions() {
   const set = new Set();
   S.data.teachers.forEach(t => { if (t.teacher) set.add(t.teacher); });
@@ -436,10 +459,10 @@ function teacherNameOptions() {
 const PAGES = {
   overview:   { t: 'Overview', s: 'Lessons, earnings and payments across the school.', i: 'grid', p: true },
   teachers:   { t: 'Teachers and lessons', s: 'Manage assignments and log lessons for any teacher.', i: 'users', p: true },
-  lessons:    { t: 'My lessons', s: 'Log your lessons and keep track of what you are owed.', i: 'book', p: true },
+  lessons:    { t: 'My lessons', s: 'Your lessons and what you are owed.', i: 'book', p: true },
   payments:   { t: 'Payments', s: 'Payments recorded against each assignment.', i: 'wallet', p: true },
   holidays:   { t: 'Holidays', s: 'Teachers see a warning when they log a lesson on these dates.', i: 'calendar' },
-  rates:      { t: 'Rates and rules', s: 'Set what a lesson pays and how many a class can have per day.', i: 'sliders' },
+  rates:      { t: 'Rates and rules', s: 'Set what a lesson pays, the payday, and daily lesson limits.', i: 'sliders' },
   accounts:   { t: 'Accounts', s: 'Approve, create and manage sign-in accounts.', i: 'key' },
   complaints: { t: 'Complaints', s: 'Raise an issue or respond to one.', i: 'message' },
   account:    { t: 'Password', s: 'Change the password you use to sign in.', i: 'lock' }
@@ -484,6 +507,7 @@ function shell() {
   const dot = k => (k === 'accounts' && pendAcc) ? `<span class="dot">${pendAcc}</span>` : (k === 'complaints' && pendCmp) ? `<span class="dot">${pendCmp}</span>` : '';
   const views = { overview: vOverview, teachers: vTeachers, lessons: vLessons, payments: vPayments, holidays: vHolidays, rates: vRates, accounts: vAccounts, complaints: vComplaints, account: vAccount };
   const name = admin ? 'Administrator' : (S.user.teacherName || S.user.username);
+  const payChip = `<span class="badge brass" title="Common payday set by the administrator">${ic('calendar')} Payday: ${esc(paydayLabel())}</span>`;
   return `<div class="app ${S.nav ? 'nav-open' : ''}">
     <aside class="side" aria-label="Main navigation">
       <div class="mast"><div class="crest">G</div><div><b>GTMC</b><span>Lesson register</span></div></div>
@@ -495,7 +519,7 @@ function shell() {
       <header class="topbar">
         <button class="ib line menu-btn" data-act="menu" aria-label="Open menu">${ic('menu')}</button>
         <span class="today">${new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</span>
-        <div class="tb-r">${pg.p ? periodSel() : ''}<button class="ib line" data-act="refresh" aria-label="Refresh data" title="Refresh">${ic('refresh')}</button><button class="ib line" data-act="logout" aria-label="Sign out" title="Sign out">${ic('logout')}</button></div>
+        <div class="tb-r">${payChip}${pg.p ? periodSel() : ''}<button class="ib line" data-act="refresh" aria-label="Refresh data" title="Refresh">${ic('refresh')}</button><button class="ib line" data-act="logout" aria-label="Sign out" title="Sign out">${ic('logout')}</button></div>
       </header>
       <main class="page">${views[S.tab]()}</main>
       <div class="foot">Greater Tomorrow Model College, Ado-Ekiti</div>
@@ -562,7 +586,10 @@ function card(t, i, admin) {
     ${lastLine}
     ${sorted.length ? `<ul class="reg">${list.map(row).join('')}</ul>` : '<div class="none">No lessons logged in this period.</div>'}
     ${sorted.length > 5 ? `<button class="more" data-act="expand" data-idx="${i}">${open ? 'Show fewer' : 'Show all ' + sorted.length + ' lessons'}</button>` : ''}
-    ${admin ? `<div class="asg-f"><button class="btn brass" data-act="logLesson" data-idx="${i}">${ic('plus')}Log a lesson</button></div>` : ''}
+    ${admin ? `<div class="asg-f">
+      <button class="btn brass" data-act="logLesson" data-idx="${i}">${ic('plus')}Log a lesson</button>
+      <button class="btn ghost" data-act="logLessonMulti" data-idx="${i}">${ic('calendar')}Log multiple days</button>
+    </div>` : ''}
   </article>`;
 }
 
@@ -572,6 +599,7 @@ function vLessons() {
   if (s.vis) figs.push({ v: money(s.e), l: 'Earned' }, { v: money(s.p), l: 'Paid' }, { v: money(s.e - s.p), l: 'Balance', c: s.e - s.p > 0 ? 'due' : '' });
   return pageHead(`<button class="btn ghost" data-act="print">${ic('printer')}Print statement</button>`) +
     `<div class="print-head"><h2>GTMC lesson statement</h2><p>${esc(S.user.teacherName)}, ${esc(S.month === 'all' ? 'all time' : monthLabel(S.month))}</p></div>` +
+    `<div class="note">${ic('calendar')}<span>Common payday for everyone: <b>${esc(paydayLabel())}</b>. Set by the administrator.</span></div>` +
     (d.teachers.length ? strip(figs) : '') +
     (s.vis ? `<div class="note">${ic('info')}<span>Weekday lessons pay ${money(r.weekday)} and weekend lessons ${money(r.weekend)}. A class can have up to ${r.maxLessonsPerDay} lesson${r.maxLessonsPerDay > 1 ? 's' : ''} a day.</span></div>` : '') +
     (d.teachers.length ? `<div class="cards">${idx.map(i => card(d.teachers[i], i, false)).join('')}</div>`
@@ -589,6 +617,7 @@ function vOverview() {
   return pageHead() +
     (pa ? `<div class="note warn">${ic('key')}<span>${pa} account${pa > 1 ? 's are' : ' is'} waiting for approval.</span><button class="btn s" data-act="tab" data-tab="accounts">Review</button></div>` : '') +
     (pc ? `<div class="note warn">${ic('message')}<span>${pc} complaint${pc > 1 ? 's are' : ' is'} waiting for a response.</span><button class="btn s" data-act="tab" data-tab="complaints">Open</button></div>` : '') +
+    `<div class="note">${ic('calendar')}<span>Common payday: <b>${esc(paydayLabel())}</b>.</span><button class="btn s" data-act="setPayday">Change</button></div>` +
     strip([{ v: rows.length, l: 'Assignments' }, { v: s.l, l: 'Lessons' }, { v: money(s.e), l: 'Earned' }, { v: money(s.p), l: 'Paid' }, { v: money(out), l: 'Outstanding', c: out > 0 ? 'due' : '' }]) +
     `<div class="panel tw">${rows.length ? `<table class="tbl">
       <thead><tr><th>Teacher</th><th>Subject</th><th>Class</th><th class="num">Weekday</th><th class="num">Weekend</th><th class="num">Earned</th><th class="num">Paid</th><th>Last payout</th><th>Settled</th><th class="num">Balance</th></tr></thead>
@@ -622,6 +651,7 @@ function vPayments() {
     const list = d.payments.filter(p => all || p.month === S.month).sort(byDate);
     const sum = list.reduce((a, p) => a + p.amount, 0);
     return pageHead(`<button class="btn brass" data-act="newPay">${ic('plus')}Record payment</button>`) +
+      `<div class="note">${ic('calendar')}<span>Common payday: <b>${esc(paydayLabel())}</b>.</span><button class="btn s" data-act="setPayday">Change</button></div>` +
       `<div class="panel tw">${list.length ? `<table class="tbl">
         <thead><tr><th>Paid on</th><th>Teacher</th><th>Subject</th><th>Class</th><th>For month</th><th class="num">Amount</th><th>Note</th><th></th></tr></thead>
         <tbody>${list.map(p => `<tr><td>${fdt(p.date)}</td><td>${esc(p.teacher)}</td><td>${esc(p.subject)}</td><td>${esc(p.class)}</td><td>${esc(monthLabel(p.month))}</td><td class="num">${money(p.amount)}</td><td class="muted">${esc(p.note)}</td><td><button class="ib danger" data-act="delPayment" data-row="${p.rowIndex}" aria-label="Delete payment">${ic('trash')}</button></td></tr>`).join('')}</tbody>
@@ -633,6 +663,7 @@ function vPayments() {
   const sum = visible.reduce((a, p) => a + p.amount, 0);
   if (!anyShow) return pageHead() + `<div class="panel">${empty('eyeoff', 'Amounts are not shown', 'The administrator has not made amounts visible for your account.')}</div>`;
   return pageHead() + strip([{ v: money(sum), l: 'Received in this period' }, { v: visible.length, l: 'Payments' }]) +
+    `<div class="note">${ic('calendar')}<span>Common payday for everyone: <b>${esc(paydayLabel())}</b>.</span></div>` +
     `<div class="panel tw">${visible.length ? `<table class="tbl">
       <thead><tr><th>Paid on</th><th>Subject</th><th>Class</th><th>For month</th><th class="num">Amount</th><th>Note</th></tr></thead>
       <tbody>${visible.map(p => `<tr><td>${fdt(p.date)}</td><td>${esc(p.subject)}</td><td>${esc(p.class)}</td><td>${esc(monthLabel(p.month))}</td><td class="num">${money(p.amount)}</td><td class="muted">${esc(p.note)}</td></tr>`).join('')}</tbody></table>`
@@ -649,12 +680,15 @@ function vHolidays() {
 
 function vRates() {
   const r = S.data.rates;
+  const dayOpts = Array.from({length: 28}, (_, i) => i + 1)
+    .map(d => `<option value="${d}" ${paydayValue() === d ? 'selected' : ''}>${d}${d === 1 ? 'st' : d === 2 ? 'nd' : d === 3 ? 'rd' : 'th'}</option>`).join('');
   return pageHead() + `<form class="panel pad" data-form="rates" style="max-width:620px">
     <div class="grid2">
       <label class="fld"><span>Weekday rate per lesson</span><input class="in" name="rateWeekday" type="number" min="0" step="any" value="${r.weekday}" required></label>
       <label class="fld"><span>Weekend rate per lesson</span><input class="in" name="rateWeekend" type="number" min="0" step="any" value="${r.weekend}" required></label>
       <label class="fld"><span>Most lessons per class per day</span><select class="in" name="maxLessonsPerDay"><option value="1" ${r.maxLessonsPerDay === 1 ? 'selected' : ''}>1</option><option value="2" ${r.maxLessonsPerDay === 2 ? 'selected' : ''}>2</option></select></label>
       <label class="fld"><span>Currency symbol</span><input class="in" name="currency" value="${esc(r.currency)}" maxlength="4" required></label>
+      <label class="fld"><span>Common payday (day of month)</span><select class="in" name="paymentDay">${dayOpts}</select><small>Every teacher sees this same payday in their browser.</small></label>
     </div>
     <button class="btn brass">Save rates</button></form>`;
 }
@@ -731,6 +765,66 @@ function openLessonModal(i) {
   updLessonInfo();
 }
 
+/* ============ MULTI-DAY LESSON LOGGING ============ */
+let multiIdx = -1, multiSel = new Set(), multiMonth = thisMonth();
+function multiCalendarHtml() {
+  const t = S.data.teachers[multiIdx];
+  const r = S.data.rates, hol = holMap();
+  const [y, m] = multiMonth.split('-').map(Number);
+  const first = new Date(y, m - 1, 1);
+  const startDow = first.getDay();
+  const daysInMonth = new Date(y, m, 0).getDate();
+  const cells = [];
+  ['S','M','T','W','T','F','S'].forEach(l => cells.push(`<div class="cdow">${l}</div>`));
+  for (let i = 0; i < startDow; i++) cells.push('<div></div>');
+  for (let d = 1; d <= daysInMonth; d++) {
+    const ds = y + '-' + pad(m) + '-' + pad(d);
+    const count = t.lessons.filter(l => l.date === ds).length;
+    const atLimit = count >= r.maxLessonsPerDay;
+    const isSel = multiSel.has(ds);
+    const isHol = hol[ds] !== undefined;
+    cells.push(`<button type="button" class="cal-day${isSel ? ' sel' : ''}${atLimit ? ' limit' : ''}${isHol ? ' hol' : ''}" data-act="multiToggle" data-date="${ds}" ${atLimit ? 'disabled title="Lesson limit reached"' : ''}>${d}</button>`);
+  }
+  return `<div class="cal">
+    <div class="cal-h">
+      <button type="button" class="ib" data-act="multiPrev" aria-label="Previous month">${ic('chevL')}</button>
+      <b>${new Date(y, m - 1).toLocaleDateString('en-GB', {month:'long', year:'numeric'})}</b>
+      <button type="button" class="ib" data-act="multiNext" aria-label="Next month">${ic('chevR')}</button>
+    </div>
+    <div class="cal-grid">${cells.join('')}</div>
+  </div>`;
+}
+function multiSelLabel() {
+  if (!multiSel.size) return 'No days selected yet.';
+  const list = Array.from(multiSel).sort();
+  return `<b>${list.length}</b> day${list.length > 1 ? 's' : ''} selected: ${list.map(d => dparts(d).d + ' ' + dparts(d).m).join(', ')}`;
+}
+function openMultiLessonModal(i) {
+  if (!isAdmin()) return toast('Only an administrator can log lessons.', true);
+  multiIdx = i; multiSel = new Set(); multiMonth = S.month === 'all' ? thisMonth() : S.month;
+  const t = S.data.teachers[i];
+  formModal('Log lessons on multiple days', t.subject + ', ' + t.class + ' (' + t.teacher + ')',
+    `<div id="multiCal">${multiCalendarHtml()}</div>
+     <div class="cal-sel" id="multiSelLabel">${multiSelLabel()}</div>`,
+    'Log selected days', 'multiLesson', `data-idx="${i}"`);
+  refreshMulti();
+}
+function refreshMulti() {
+  const c = $('#multiCal'); if (c) c.innerHTML = multiCalendarHtml();
+  const l = $('#multiSelLabel'); if (l) l.innerHTML = multiSelLabel();
+  const b = $('#dlgSubmit'); if (b) b.disabled = multiSel.size === 0;
+}
+
+/* ============ PAYDAY PICKER (single day-of-month, saved to backend) ============ */
+function openPaydayModal() {
+  const dayOpts = Array.from({length: 28}, (_, i) => i + 1)
+    .map(d => `<option value="${d}" ${paydayValue() === d ? 'selected' : ''}>${d}${d === 1 ? 'st' : d === 2 ? 'nd' : d === 3 ? 'rd' : 'th'}</option>`).join('');
+  formModal('Common payday', 'One payday that applies to every teacher. It is saved on the server and shown in every browser.',
+    `<label class="fld"><span>Day of every month</span><select class="in" name="payDay">${dayOpts}</select>
+       <small>Between the 1st and the 28th, so it exists in every month.</small></label>`,
+    'Save payday', 'payday');
+}
+
 /* ============ FORM HANDLERS ============ */
 const FORMS = {
   async login(f) {
@@ -755,11 +849,35 @@ const FORMS = {
     const j = await mutate('addLesson', { teacher: t.teacher, subject: t.subject, class: t.class, date: date, dayType: isWeekend(date) ? 'weekend' : 'weekday' }, 'Lesson logged.');
     if (j) { S.month = date.slice(0, 7); render(); }
   },
+  async multiLesson(f) {
+    if (!isAdmin()) return toast('Only an administrator can log lessons.', true);
+    if (!multiSel.size) return toast('Pick at least one day.', true);
+    const t = S.data.teachers[multiIdx];
+    const days = Array.from(multiSel).sort();
+    let ok = 0, fail = 0, lastErr = '';
+    for (const date of days) {
+      try {
+        await api('addLesson', { teacher: t.teacher, subject: t.subject, class: t.class, date: date, dayType: isWeekend(date) ? 'weekend' : 'weekday' });
+        ok++;
+      } catch (e) { fail++; lastErr = e.message; }
+    }
+    try { const j = await api('getDashboard'); if (j) { S.user = j.user; S.data = j.data; } } catch (e) {}
+    closeModal(false); render();
+    if (ok && !fail) toast(ok + ' lesson' + (ok > 1 ? 's' : '') + ' logged.');
+    else if (ok && fail) toast(ok + ' logged, ' + fail + ' failed: ' + lastErr, true);
+    else toast('Nothing logged: ' + lastErr, true);
+  },
   addTeacher(f) { return mutate('registerTeacher', fd(f), 'Assignment registered.'); },
   holiday(f) { return mutate('addHoliday', fd(f), 'Holiday added.'); },
   rates(f) {
     const v = fd(f);
-    return mutate('updateRates', { rateWeekday: v.rateWeekday, rateWeekend: v.rateWeekend, maxLessonsPerDay: v.maxLessonsPerDay, currency: v.currency }, 'Rates saved.');
+    return mutate('updateRates', {
+      rateWeekday: v.rateWeekday,
+      rateWeekend: v.rateWeekend,
+      maxLessonsPerDay: v.maxLessonsPerDay,
+      currency: v.currency,
+      paymentDay: v.paymentDay
+    }, 'Rates saved.');
   },
   payment(f) {
     const v = fd(f), t = S.data.teachers[Number(v.idx)];
@@ -776,6 +894,17 @@ const FORMS = {
     if (v.newPassword !== v.confirm) return toast('The new passwords do not match.', true);
     const j = await run(() => api('changePassword', { oldPassword: v.oldPassword, newPassword: v.newPassword }));
     if (j) { f.reset(); toast(j.message || 'Password updated.'); }
+  },
+  payday(f) {
+    const day = Number(document.querySelector('select[name="payDay"]').value) || 25;
+    if (day < 1 || day > 28) return toast('Pick a day between 1 and 28.', true);
+    return mutate('updateRates', {
+      rateWeekday: S.data.rates.weekday,
+      rateWeekend: S.data.rates.weekend,
+      maxLessonsPerDay: S.data.rates.maxLessonsPerDay,
+      currency: S.data.rates.currency,
+      paymentDay: day
+    }, 'Payday saved for everyone.');
   }
 };
 
@@ -805,6 +934,28 @@ const ACTS = {
     if (!isAdmin()) return toast('Only an administrator can log lessons.', true);
     openLessonModal(Number(el.dataset.idx));
   },
+  logLessonMulti(el) {
+    if (!isAdmin()) return toast('Only an administrator can log lessons.', true);
+    openMultiLessonModal(Number(el.dataset.idx));
+  },
+  multiToggle(el) {
+    const d = el.dataset.date;
+    if (multiSel.has(d)) multiSel.delete(d); else multiSel.add(d);
+    refreshMulti();
+  },
+  multiPrev() {
+    const [y, m] = multiMonth.split('-').map(Number);
+    const d = new Date(y, m - 2, 1);
+    multiMonth = d.getFullYear() + '-' + pad(d.getMonth() + 1);
+    refreshMulti();
+  },
+  multiNext() {
+    const [y, m] = multiMonth.split('-').map(Number);
+    const d = new Date(y, m, 1);
+    multiMonth = d.getFullYear() + '-' + pad(d.getMonth() + 1);
+    refreshMulti();
+  },
+  setPayday() { openPaydayModal(); },
   newAsg() {
     const names = Array.from(new Set(S.data.teachers.map(t => t.teacher)));
     formModal('New assignment', 'Link a teacher to a subject and class.',
