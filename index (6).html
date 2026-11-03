@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0b2a5b">
+<title>GTMC Lesson Dashboard</title>
+<style>
+:root{--blue:#0b2a5b;--blue2:#143c82;--gold:#c8962b;--bg:#f3f5fa;--card:#fff;--text:#1b2437;--muted:#6b7488;--line:#e3e7f0;--ok:#1c8c4e;--warn:#c2410c;--bad:#b91c1c}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text)}
+h1,h2,h3{margin:0}
+h2{font-size:18px;margin-bottom:10px}
+h3{font-size:16px}
+.muted{color:var(--muted);font-size:13px}
+.center{text-align:center}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.between{justify-content:space-between}
+.wrap{max-width:1000px;margin:0 auto;padding:0 14px}
+
+/* header */
+header.top{background:var(--blue);color:#fff;border-bottom:3px solid var(--gold)}
+header.top .wrap{display:flex;justify-content:space-between;align-items:center;padding-top:12px;padding-bottom:12px;gap:10px}
+.brand b{font-size:20px;letter-spacing:2px;color:var(--gold)}
+.brand small{display:block;font-size:11px;opacity:.8}
+.who{display:flex;align-items:center;gap:10px;font-size:13px;text-align:right}
+.who button{background:transparent;border:1px solid rgba(255,255,255,.5);color:#fff;border-radius:8px;padding:6px 10px;cursor:pointer}
+nav.tabs{background:#fff;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
+nav.tabs .wrap{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none}
+nav.tabs button{border:0;background:none;padding:12px 12px;font-size:14px;color:var(--muted);cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap}
+nav.tabs button.on{color:var(--blue);border-color:var(--gold);font-weight:600}
+.dot{display:inline-block;min-width:18px;padding:0 5px;border-radius:9px;background:var(--warn);color:#fff;font-size:11px;line-height:18px;text-align:center;margin-left:4px}
+main{padding:16px 0 60px}
+
+/* cards & grids */
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:14px;box-shadow:0 1px 2px rgba(11,42,91,.04)}
+.grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin-bottom:14px}
+.stat{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px}
+.stat b{display:block;font-size:20px;color:var(--blue)}
+.stat span{font-size:12px;color:var(--muted)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(105px,1fr));gap:8px;margin:12px 0}
+.stats div{background:var(--bg);border-radius:8px;padding:8px}
+.stats b{display:block;font-size:15px}
+.stats span{font-size:11px;color:var(--muted)}
+.due{color:var(--warn)}
+
+/* forms */
+label{display:block;font-size:13px;color:var(--muted);margin-bottom:10px}
+input,select,textarea{width:100%;margin-top:4px;padding:10px;border:1px solid #cfd6e4;border-radius:8px;font:inherit;background:#fff;color:var(--text)}
+textarea{min-height:90px;resize:vertical}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--gold);border-color:var(--gold)}
+.formgrid{display:grid;gap:0 12px;grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}
+form.inline{display:flex;gap:8px;margin-top:10px}
+form.inline input{margin:0;flex:1}
+.btn{background:var(--blue);color:#fff;border:0;border-radius:8px;padding:10px 16px;font:inherit;font-weight:600;cursor:pointer}
+.btn:hover{background:var(--blue2)}
+.btn.gold{background:var(--gold)}
+.btn.ghost{background:#fff;color:var(--blue);border:1px solid #cfd6e4}
+.btn.danger{background:#fff;color:var(--bad);border:1px solid #f0c4c4}
+.btn.sm{padding:6px 10px;font-size:13px}
+.toolbar{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px}
+.toolbar label{margin:0}
+.toolbar select{width:auto;min-width:170px}
+
+/* lists / tables */
+ul.lessons{list-style:none;margin:8px 0 0;padding:0;max-height:260px;overflow:auto;border:1px solid var(--line);border-radius:8px}
+ul.lessons li{display:flex;gap:8px;align-items:center;padding:7px 10px;border-bottom:1px solid var(--line)}
+ul.lessons li:last-child{border:0}
+ul.lessons li span:first-child{flex:1}
+.x{border:0;background:none;color:var(--bad);cursor:pointer;font-size:15px;padding:2px 6px}
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
+tfoot td{font-weight:700;background:var(--bg)}
+td.num,th.num{text-align:right}
+.badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;background:#e8edf7;color:var(--blue);text-transform:capitalize}
+.badge.ok{background:#dff3e8;color:var(--ok)}
+.badge.warn{background:#fdebdc;color:var(--warn)}
+.badge.gold{background:#f8ecd0;color:#8a6212}
+.badge.bad{background:#fbe0e0;color:var(--bad)}
+.pw{font-family:ui-monospace,Menlo,Consolas,monospace;background:var(--bg);padding:2px 6px;border-radius:4px}
+.alert{background:#fff7e6;border:1px solid #f1d9a0;border-radius:10px;padding:10px 12px;margin-bottom:14px;display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.alert.bad{background:#fdecec;border-color:#f2c0c0}
+.cmp{border-top:1px solid var(--line);padding-top:12px;margin-top:12px}
+.cmp:first-child{border:0;margin:0;padding:0}
+.reply{background:var(--bg);border-left:3px solid var(--gold);padding:8px 10px;border-radius:6px;margin-top:8px;white-space:pre-wrap}
+
+/* auth */
+.auth{max-width:400px;margin:0 auto;padding:30px 14px}
+.auth .big{text-align:center;margin-bottom:18px}
+.auth .big b{font-size:34px;letter-spacing:4px;color:var(--blue)}
+.auth .big small{display:block;color:var(--muted)}
+.seg{display:flex;background:var(--bg);border-radius:10px;padding:4px;margin-bottom:14px}
+.seg button{flex:1;border:0;background:none;padding:9px;border-radius:8px;font:inherit;cursor:pointer;color:var(--muted)}
+.seg button.on{background:#fff;color:var(--blue);font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,.1)}
+
+/* feedback */
+#toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,30px);background:var(--blue);color:#fff;padding:11px 18px;border-radius:10px;opacity:0;pointer-events:none;transition:.25s;z-index:50;max-width:90vw;text-align:center}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+#toast.bad{background:var(--bad)}
+body.busy::before{content:"";position:fixed;top:0;left:0;height:3px;width:100%;background:linear-gradient(90deg,var(--gold),#f3d48a,var(--gold));background-size:200% 100%;animation:bar 1s linear infinite;z-index:60}
+body.busy{cursor:progress}
+@keyframes bar{to{background-position:-200% 0}}
+.spin{width:34px;height:34px;border:4px solid var(--line);border-top-color:var(--gold);border-radius:50%;animation:sp 1s linear infinite;margin:80px auto}
+@keyframes sp{to{transform:rotate(360deg)}}
+@media print{
+  header.top,nav.tabs,.toolbar,form,.x,.btn,#toast{display:none!important}
+  body{background:#fff}.card{box-shadow:none;break-inside:avoid}
+  ul.lessons{max-height:none}
+}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="toast"></div>
+<noscript><p class="center">Please enable JavaScript to use the dashboard.</p></noscript>
+
+<script>
+/* ============ CONFIG ============ */
+// Paste your Apps Script Web App URL (ends with /exec)
+const API_URL = 'PASTE_YOUR_APPS_SCRIPT_EXEC_URL_HERE';
+
+/* ============ HELPERS ============ */
+const $ = s => document.querySelector(s);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pad = n => String(n).padStart(2, '0');
+const today = () => { const d = new Date(); return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); };
+const thisMonth = () => today().slice(0, 7);
+const isWeekend = ds => { const g = new Date(ds + 'T00:00:00').getDay(); return g === 0 || g === 6; };
+const fmtDate = ds => { const d = new Date(ds + 'T00:00:00'); return isNaN(d) ? esc(ds) : d.toLocaleDateString('en-GB', {weekday:'short', day:'numeric', month:'short', year:'numeric'}); };
+const fdt = v => { const d = new Date(v); return isNaN(d) ? esc(v || '') : d.toLocaleDateString('en-GB', {day:'numeric', month:'short', year:'numeric'}); };
+const monthLabel = m => /^\d{4}-\d{2}$/.test(m) ? new Date(m + '-01T00:00:00').toLocaleDateString('en-GB', {month:'long', year:'numeric'}) : m;
+const fd = f => Object.fromEntries(new FormData(f).entries());
+const money = n => { const c = (S.data && S.data.rates.currency) || '₦'; n = Number(n) || 0; return (n < 0 ? '-' : '') + c + Math.abs(n).toLocaleString(); };
+const store = t => { try { t ? localStorage.setItem('gtmc_token', t) : localStorage.removeItem('gtmc_token'); } catch (e) {} };
+const loadTok = () => { try { return localStorage.getItem('gtmc_token') || ''; } catch (e) { return ''; } };
+
+let tt;
+function toast(m, bad) {
+  const t = $('#toast');
+  t.textContent = m;
+  t.className = 'show' + (bad ? ' bad' : '');
+  clearTimeout(tt);
+  tt = setTimeout(() => { t.className = ''; }, 3800);
+}
+
+/* ============ STATE ============ */
+const S = { token: loadTok(), user: null, data: null, tab: null, month: thisMonth(), auth: 'login', loading: true };
+
+/* ============ API ============ */
+async function api(action, payload) {
+  if (!API_URL || API_URL.indexOf('PASTE_') === 0) throw new Error('API_URL is not set. Open index.html and paste your Apps Script /exec URL.');
+  const body = JSON.stringify(Object.assign({ action: action, token: S.token }, payload || {}));
+  let res;
+  try {
+    // text/plain avoids the CORS preflight that Apps Script cannot answer
+    res = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: body });
+  } catch (e) {
+    throw new Error('Cannot reach the server. Check your internet connection.');
+  }
+  let j;
+  try { j = await res.json(); } catch (e) { throw new Error('The server sent an unexpected reply. Check the API_URL and that the Web App access is "Anyone".'); }
+  if (!j.ok) {
+    if (/session has expired/i.test(j.error || '')) { doLogout(); }
+    throw new Error(j.error || 'Request failed.');
+  }
+  return j;
+}
+
+let inflight = false;
+async function run(fn) {
+  if (inflight) return null;
+  inflight = true;
+  document.body.classList.add('busy');
+  try { return await fn(); }
+  catch (e) { toast(e.message || 'Something went wrong.', true); return null; }
+  finally { inflight = false; document.body.classList.remove('busy'); }
+}
+
+async function mutate(action, payload, msg) {
+  const j = await run(() => api(action, payload));
+  if (j) { if (j.data) S.data = j.data; render(); toast(msg || j.message || 'Done'); }
+  return j;
+}
+
+function doLogout() {
+  S.token = ''; S.user = null; S.data = null; S.tab = null; S.auth = 'login';
+  store('');
+  render();
+}
+
+/* ============ CALCULATIONS ============ */
+const isAdmin = () => S.user && S.user.role === 'admin';
+const holMap = () => { const m = {}; S.data.holidays.forEach(h => { m[h.date] = h.note || ''; }); return m; };
+const sameAsg = (x, t) => x.teacher === t.teacher && x.subject === t.subject && x.class === t.class;
+
+function calc(t) {
+  const all = S.month === 'all';
+  const L = t.lessons.filter(l => all || String(l.date).indexOf(S.month) === 0);
+  const wd = L.filter(l => l.dayType === 'weekday').length;
+  const we = L.length - wd;
+  const r = S.data.rates;
+  const earned = wd * r.weekday + we * r.weekend;
+  const paid = S.data.payments.filter(p => sameAsg(p, t) && (all || p.month === S.month)).reduce((a, p) => a + p.amount, 0);
+  return { L: L, wd: wd, we: we, earned: earned, paid: paid, balance: earned - paid };
+}
+
+function months() {
+  const set = new Set([thisMonth()]);
+  S.data.teachers.forEach(t => t.lessons.forEach(l => set.add(String(l.date).slice(0, 7))));
+  S.data.payments.forEach(p => { if (p.month) set.add(p.month); });
+  return Array.from(set).sort().reverse();
+}
+
+function sortedIdx() {
+  return S.data.teachers.map((t, i) => i).sort((a, b) => {
+    const x = S.data.teachers[a], y = S.data.teachers[b];
+    return (x.teacher + x.class + x.subject).localeCompare(y.teacher + y.class + y.subject);
+  });
+}
+
+/* ============ VIEWS ============ */
+function render() {
+  const app = $('#app');
+  if (S.loading) { app.innerHTML = '<div class="spin"></div>'; return; }
+  app.innerHTML = S.user ? shell() : authView();
+}
+
+function authView() {
+  const reg = S.auth === 'register';
+  const unset = !API_URL || API_URL.indexOf('PASTE_') === 0;
+  return `<div class="auth">
+    <div class="big"><b>GTMC</b><small>Teacher Lesson Dashboard</small></div>
+    ${unset ? '<div class="alert bad">API_URL is not set yet. Open <b>index.html</b> and paste your Apps Script /exec link.</div>' : ''}
+    <div class="card">
+      <div class="seg">
+        <button data-act="auth" data-mode="login" class="${!reg ? 'on' : ''}">Sign in</button>
+        <button data-act="auth" data-mode="register" class="${reg ? 'on' : ''}">Register</button>
+      </div>
+      ${reg ? `
+      <form data-form="register" autocomplete="off">
+        <label>Full name (exactly as the school registered you)<input name="teacherName" required></label>
+        <label>Username (4–30 letters, numbers, . _ -)<input name="username" required autocapitalize="none" pattern="[A-Za-z0-9._\\-]{4,30}"></label>
+        <label>Password (min 8 characters)<input name="password" type="text" required minlength="8"></label>
+        <button class="btn" style="width:100%">Submit registration</button>
+        <p class="muted">An administrator must approve your account before you can sign in.</p>
+      </form>` : `
+      <form data-form="login">
+        <label>Username<input name="username" required autocapitalize="none" autocomplete="username"></label>
+        <label>Password<input name="password" type="password" required autocomplete="current-password"></label>
+        <button class="btn" style="width:100%">Sign in</button>
+      </form>`}
+    </div>
+    <p class="muted center">Greater Tomorrow Model College</p>
+  </div>`;
+}
+
+const TABS = {
+  admin: [['overview','Overview'],['teachers','Teachers'],['payments','Payments'],['holidays','Holidays'],['rates','Rates'],['accounts','Accounts'],['complaints','Complaints'],['account','Password']],
+  teacher: [['lessons','My Lessons'],['payments','Payments'],['complaints','Complaints'],['account','Password']]
+};
+
+function shell() {
+  const admin = isAdmin();
+  const tabs = TABS[admin ? 'admin' : 'teacher'];
+  const pendAcc = admin ? S.data.accounts.filter(a => a.status === 'pending').length : 0;
+  const pendCmp = admin ? S.data.complaints.filter(c => c.status === 'Pending').length : 0;
+  const badge = k => (k === 'accounts' && pendAcc) ? `<span class="dot">${pendAcc}</span>` : (k === 'complaints' && pendCmp) ? `<span class="dot">${pendCmp}</span>` : '';
+  const views = { overview: vOverview, teachers: vTeachers, lessons: vLessons, payments: vPayments, holidays: vHolidays, rates: vRates, accounts: vAccounts, complaints: vComplaints, account: vAccount };
+  const view = views[S.tab] || (admin ? vOverview : vLessons);
+  return `<header class="top"><div class="wrap">
+      <div class="brand"><b>GTMC</b><small>Lesson Dashboard</small></div>
+      <div class="who"><div>${esc(admin ? 'Administrator' : (S.user.teacherName || S.user.username))}<br><span class="muted" style="color:#cdd7ec">@${esc(S.user.username)}</span></div><button data-act="logout">Sign out</button></div>
+    </div></header>
+    <nav class="tabs"><div class="wrap">${tabs.map(t => `<button data-act="tab" data-tab="${t[0]}" class="${S.tab === t[0] ? 'on' : ''}">${t[1]}${badge(t[0])}</button>`).join('')}</div></nav>
+    <main><div class="wrap">${view()}</div></main>`;
+}
+
+function toolbar(extra) {
+  return `<div class="toolbar">
+    <label>Period<select data-sel="month">
+      <option value="all" ${S.month === 'all' ? 'selected' : ''}>All time</option>
+      ${months().map(m => `<option value="${esc(m)}" ${S.month === m ? 'selected' : ''}>${esc(monthLabel(m))}</option>`).join('')}
+    </select></label>
+    <button class="btn ghost" data-act="refresh">↻ Refresh</button>${extra || ''}
+  </div>`;
+}
+
+/* ----- assignment card (used for teacher and admin) ----- */
+function card(t, i, admin) {
+  const c = calc(t), show = admin || t.showAmount, hol = holMap();
+  const lessons = [...c.L].sort((a, b) => String(b.date).localeCompare(String(a.date)));
+  return `<section class="card">
+    <div class="row between">
+      <div><h3>${esc(t.subject)} <span class="muted">· ${esc(t.class)}</span></h3>${admin ? `<div class="muted">${esc(t.teacher)}</div>` : ''}</div>
+      ${admin ? `<span class="badge ${t.showAmount ? 'ok' : 'warn'}">${t.showAmount ? 'Amount visible' : 'Amount hidden'}</span>` : ''}
+    </div>
+    <div class="stats">
+      <div><b>${c.L.length}</b><span>Lessons</span></div>
+      <div><b>${c.wd} / ${c.we}</b><span>Weekday / Weekend</span></div>
+      ${show ? `<div><b>${money(c.earned)}</b><span>Earned</span></div><div><b>${money(c.paid)}</b><span>Paid</span></div><div><b class="${c.balance > 0 ? 'due' : ''}">${money(c.balance)}</b><span>Balance</span></div>` : ''}
+    </div>
+    ${lessons.length ? `<ul class="lessons">${lessons.map(l => `<li>
+        <span>${fmtDate(l.date)}</span>
+        <span class="badge ${l.dayType === 'weekend' ? 'gold' : ''}">${esc(l.dayType)}</span>
+        ${hol[l.date] !== undefined ? '<span class="badge warn">holiday</span>' : ''}
+        <button class="x" title="Delete lesson" data-act="delLesson" data-row="${l.rowIndex}">✕</button></li>`).join('')}</ul>`
+      : '<p class="muted">No lessons logged for this period.</p>'}
+    <form class="inline" data-form="lesson" data-idx="${i}">
+      <input type="date" name="date" value="${today()}" required>
+      <button class="btn gold">+ Add lesson</button>
+    </form>
+    ${admin ? `<div class="row" style="margin-top:12px">
+      <button class="btn ghost sm" data-act="toggleVis" data-idx="${i}">${t.showAmount ? 'Hide amount from teacher' : 'Show amount to teacher'}</button>
+      <button class="btn danger sm" data-act="delTeacher" data-idx="${i}">Delete assignment</button></div>` : ''}
+  </section>`;
+}
+
+/* ----- teacher: lessons ----- */
+function vLessons() {
+  const d = S.data, r = d.rates;
+  const anyShow = d.teachers.some(t => t.showAmount);
+  return `<h2>My Lessons</h2>
+    ${toolbar('<button class="btn ghost" data-act="print">🖨 Print</button>')}
+    ${anyShow ? `<p class="muted">Rates: weekday ${money(r.weekday)} · weekend ${money(r.weekend)} · max ${r.maxLessonsPerDay} lesson${r.maxLessonsPerDay > 1 ? 's' : ''} per day per class.</p>` : ''}
+    ${d.teachers.length ? sortedIdx().map(i => card(d.teachers[i], i, false)).join('')
+      : `<div class="card">No subject or class is assigned to you yet. Ask the administrator to register your assignment under the name <b>${esc(S.user.teacherName)}</b>.</div>`}`;
+}
+
+/* ----- admin: overview ----- */
+function vOverview() {
+  const d = S.data;
+  const rows = sortedIdx().map(i => ({ t: d.teachers[i], c: calc(d.teachers[i]) }));
+  const tot = rows.reduce((a, x) => ({ l: a.l + x.c.L.length, e: a.e + x.c.earned, p: a.p + x.c.paid, wd: a.wd + x.c.wd, we: a.we + x.c.we }), { l: 0, e: 0, p: 0, wd: 0, we: 0 });
+  const pa = d.accounts.filter(a => a.status === 'pending').length;
+  const pc = d.complaints.filter(c => c.status === 'Pending').length;
+  return `<h2>Overview</h2>${toolbar()}
+    ${pa ? `<div class="alert"><b>${pa}</b> account${pa > 1 ? 's' : ''} waiting for approval <button class="btn sm" data-act="tab" data-tab="accounts">Review</button></div>` : ''}
+    ${pc ? `<div class="alert"><b>${pc}</b> pending complaint${pc > 1 ? 's' : ''} <button class="btn sm" data-act="tab" data-tab="complaints">Open</button></div>` : ''}
+    <div class="grid">
+      <div class="stat"><b>${rows.length}</b><span>Assignments</span></div>
+      <div class="stat"><b>${tot.l}</b><span>Lessons</span></div>
+      <div class="stat"><b>${money(tot.e)}</b><span>Earned</span></div>
+      <div class="stat"><b>${money(tot.p)}</b><span>Paid</span></div>
+      <div class="stat"><b class="${tot.e - tot.p > 0 ? 'due' : ''}">${money(tot.e - tot.p)}</b><span>Outstanding</span></div>
+    </div>
+    <div class="card tw"><table>
+      <thead><tr><th>Teacher</th><th>Subject</th><th>Class</th><th class="num">Wkday</th><th class="num">Wkend</th><th class="num">Earned</th><th class="num">Paid</th><th class="num">Balance</th></tr></thead>
+      <tbody>${rows.map(x => `<tr><td>${esc(x.t.teacher)}</td><td>${esc(x.t.subject)}</td><td>${esc(x.t.class)}</td><td class="num">${x.c.wd}</td><td class="num">${x.c.we}</td><td class="num">${money(x.c.earned)}</td><td class="num">${money(x.c.paid)}</td><td class="num ${x.c.balance > 0 ? 'due' : ''}">${money(x.c.balance)}</td></tr>`).join('') || '<tr><td colspan="8" class="muted">No assignments yet.</td></tr>'}</tbody>
+      <tfoot><tr><td colspan="3">Total</td><td class="num">${tot.wd}</td><td class="num">${tot.we}</td><td class="num">${money(tot.e)}</td><td class="num">${money(tot.p)}</td><td class="num">${money(tot.e - tot.p)}</td></tr></tfoot>
+    </table></div>`;
+}
+
+/* ----- admin: teachers ----- */
+function vTeachers() {
+  const d = S.data;
+  const names = Array.from(new Set(d.teachers.map(t => t.teacher)));
+  return `<h2>Teachers &amp; Lessons</h2>
+    <form class="card" data-form="addTeacher">
+      <h3 style="margin-bottom:10px">Register an assignment</h3>
+      <div class="formgrid">
+        <label>Teacher name<input name="teacher" list="tnames" required></label>
+        <label>Subject<input name="subject" required></label>
+        <label>Class<input name="class" required></label>
+      </div>
+      <datalist id="tnames">${names.map(n => `<option value="${esc(n)}">`).join('')}</datalist>
+      <button class="btn">Register</button>
+      <p class="muted">The teacher name must match the name on the teacher's account so they can see it.</p>
+    </form>
+    ${toolbar()}
+    ${d.teachers.length ? sortedIdx().map(i => card(d.teachers[i], i, true)).join('') : '<div class="card muted">No assignments yet.</div>'}`;
+}
+
+/* ----- payments ----- */
+function vPayments() {
+  const d = S.data, admin = isAdmin(), all = S.month === 'all';
+  if (admin) {
+    const list = d.payments.filter(p => all || p.month === S.month).sort((a, b) => String(b.date).localeCompare(String(a.date)));
+    const sum = list.reduce((a, p) => a + p.amount, 0);
+    return `<h2>Payments</h2>
+      <form class="card" data-form="payment">
+        <h3 style="margin-bottom:10px">Record a payment</h3>
+        <div class="formgrid">
+          <label>Assignment<select name="idx" required>${sortedIdx().map(i => { const t = d.teachers[i]; return `<option value="${i}">${esc(t.teacher)} — ${esc(t.subject)} (${esc(t.class)})</option>`; }).join('')}</select></label>
+          <label>Amount<input name="amount" type="number" min="1" step="any" required></label>
+          <label>Date paid<input name="date" type="date" value="${today()}" required></label>
+          <label>For month<input name="month" type="month" value="${thisMonth()}" required></label>
+        </div>
+        <label>Note (optional)<input name="note"></label>
+        <button class="btn">Save payment</button>
+      </form>
+      ${toolbar()}
+      <div class="card tw"><table>
+        <thead><tr><th>Date</th><th>Teacher</th><th>Subject</th><th>Class</th><th>Month</th><th class="num">Amount</th><th>Note</th><th></th></tr></thead>
+        <tbody>${list.map(p => `<tr><td>${fdt(p.date)}</td><td>${esc(p.teacher)}</td><td>${esc(p.subject)}</td><td>${esc(p.class)}</td><td>${esc(monthLabel(p.month))}</td><td class="num">${money(p.amount)}</td><td>${esc(p.note)}</td><td><button class="x" data-act="delPayment" data-row="${p.rowIndex}" title="Delete">✕</button></td></tr>`).join('') || '<tr><td colspan="8" class="muted">No payments for this period.</td></tr>'}</tbody>
+        <tfoot><tr><td colspan="5">Total</td><td class="num">${money(sum)}</td><td colspan="2"></td></tr></tfoot>
+      </table></div>`;
+  }
+  const visible = d.payments.filter(p => d.teachers.some(t => t.showAmount && sameAsg(p, t)) && (all || p.month === S.month)).sort((a, b) => String(b.date).localeCompare(String(a.date)));
+  const anyShow = d.teachers.some(t => t.showAmount);
+  const sum = visible.reduce((a, p) => a + p.amount, 0);
+  return `<h2>Payments</h2>${toolbar()}
+    ${!anyShow ? '<div class="card muted">Amounts are not shown for your account.</div>' : `
+    <div class="card tw"><table>
+      <thead><tr><th>Date</th><th>Subject</th><th>Class</th><th>Month</th><th class="num">Amount</th><th>Note</th></tr></thead>
+      <tbody>${visible.map(p => `<tr><td>${fdt(p.date)}</td><td>${esc(p.subject)}</td><td>${esc(p.class)}</td><td>${esc(monthLabel(p.month))}</td><td class="num">${money(p.amount)}</td><td>${esc(p.note)}</td></tr>`).join('') || '<tr><td colspan="6" class="muted">No payments for this period.</td></tr>'}</tbody>
+      <tfoot><tr><td colspan="4">Total received</td><td class="num">${money(sum)}</td><td></td></tr></tfoot>
+    </table></div>`}`;
+}
+
+/* ----- holidays ----- */
+function vHolidays() {
+  const list = [...S.data.holidays].sort((a, b) => String(b.date).localeCompare(String(a.date)));
+  return `<h2>Holidays</h2>
+    <form class="card" data-form="holiday">
+      <div class="formgrid">
+        <label>Date<input name="date" type="date" required></label>
+        <label>Note<input name="note" placeholder="e.g. Independence Day"></label>
+      </div>
+      <button class="btn">Add holiday</button>
+      <p class="muted">Teachers get a warning when they add a lesson on a holiday.</p>
+    </form>
+    <div class="card tw"><table>
+      <thead><tr><th>Date</th><th>Note</th><th></th></tr></thead>
+      <tbody>${list.map(h => `<tr><td>${fmtDate(h.date)}</td><td>${esc(h.note)}</td><td><button class="x" data-act="delHoliday" data-row="${h.rowIndex}" title="Delete">✕</button></td></tr>`).join('') || '<tr><td colspan="3" class="muted">No holidays set.</td></tr>'}</tbody>
+    </table></div>`;
+}
+
+/* ----- rates ----- */
+function vRates() {
+  const r = S.data.rates;
+  return `<h2>Rates</h2>
+    <form class="card" data-form="rates">
+      <div class="formgrid">
+        <label>Weekday rate per lesson<input name="rateWeekday" type="number" min="0" step="any" value="${r.weekday}" required></label>
+        <label>Weekend rate per lesson<input name="rateWeekend" type="number" min="0" step="any" value="${r.weekend}" required></label>
+        <label>Max lessons per day<select name="maxLessonsPerDay"><option value="1" ${r.maxLessonsPerDay === 1 ? 'selected' : ''}>1</option><option value="2" ${r.maxLessonsPerDay === 2 ? 'selected' : ''}>2</option></select></label>
+        <label>Currency symbol<input name="currency" value="${esc(r.currency)}" maxlength="4" required></label>
+      </div>
+      <button class="btn">Save rates</button>
+    </form>`;
+}
+
+/* ----- accounts ----- */
+function vAccounts() {
+  const list = [...S.data.accounts].sort((a, b) => (a.status === 'pending' ? 0 : 1) - (b.status === 'pending' ? 0 : 1) || a.username.localeCompare(b.username));
+  const cls = s => s === 'active' ? 'ok' : s === 'pending' ? 'warn' : 'bad';
+  return `<h2>Accounts</h2>
+    <form class="card" data-form="createAccount" autocomplete="off">
+      <h3 style="margin-bottom:10px">Create a teacher account</h3>
+      <div class="formgrid">
+        <label>Username<input name="username" required autocapitalize="none" pattern="[A-Za-z0-9._\\-]{4,30}"></label>
+        <label>Teacher name (as registered)<input name="teacherName" required></label>
+        <label>Password (min 8)<input name="password" type="text" required minlength="8"></label>
+      </div>
+      <button class="btn">Create account</button>
+    </form>
+    <div class="card tw"><table>
+      <thead><tr><th>Username</th><th>Teacher name</th><th>Role</th><th>Status</th><th>Password</th><th></th></tr></thead>
+      <tbody>${list.map(a => `<tr>
+        <td>${esc(a.username)}</td><td>${esc(a.teacherName)}</td><td>${esc(a.role)}</td>
+        <td><span class="badge ${cls(a.status)}">${esc(a.status)}</span></td>
+        <td><span class="pw">${esc(a.plainPassword)}</span></td>
+        <td>${a.role === 'admin' ? '' : (a.status === 'active'
+          ? `<button class="btn danger sm" data-act="deactivate" data-uid="${esc(a.id)}">Deactivate</button>`
+          : `<button class="btn sm" data-act="approve" data-uid="${esc(a.id)}">${a.status === 'pending' ? 'Approve' : 'Activate'}</button>`)}</td>
+      </tr>`).join('')}</tbody>
+    </table></div>`;
+}
+
+/* ----- complaints ----- */
+function vComplaints() {
+  const admin = isAdmin();
+  const list = [...S.data.complaints].reverse();
+  const cls = s => s === 'Resolved' ? 'ok' : s === 'Under Review' ? 'gold' : 'warn';
+  const item = c => `<div class="cmp">
+      <div class="row between"><b>${esc(c.title)}</b><span class="badge ${cls(c.status)}">${esc(c.status)}</span></div>
+      <div class="muted">${esc(c.category)} · ${admin ? '@' + esc(c.submittedBy) + ' · ' : ''}${fdt(c.createdAt)}</div>
+      <p style="white-space:pre-wrap;margin:8px 0">${esc(c.description)}</p>
+      ${!admin && c.adminResponse ? `<div class="reply"><b>Admin reply:</b> ${esc(c.adminResponse)}</div>` : ''}
+      ${admin ? `<form data-form="updComplaint" data-cid="${esc(c.id)}">
+        <div class="formgrid">
+          <label>Status<select name="status">${['Pending', 'Under Review', 'Resolved'].map(s => `<option ${c.status === s ? 'selected' : ''}>${s}</option>`).join('')}</select></label>
+        </div>
+        <label>Reply<textarea name="adminResponse">${esc(c.adminResponse)}</textarea></label>
+        <button class="btn sm">Save</button>
+      </form>` : ''}
+    </div>`;
+  return `<h2>Complaints</h2>
+    ${admin ? '' : `<form class="card" data-form="complaint">
+      <h3 style="margin-bottom:10px">Submit a complaint</h3>
+      <label>Category<select name="category"><option>Payment</option><option>Lesson record</option><option>Account</option><option>Other</option></select></label>
+      <label>Title<input name="title" maxlength="120" required></label>
+      <label>Details<textarea name="description" maxlength="5000" required></textarea></label>
+      <button class="btn">Submit</button>
+    </form>`}
+    <div class="card">${list.map(item).join('') || '<p class="muted">No complaints yet.</p>'}</div>`;
+}
+
+/* ----- change password ----- */
+function vAccount() {
+  return `<h2>Change password</h2>
+    <form class="card" data-form="changePw" autocomplete="off">
+      <p class="muted">Signed in as <b>@${esc(S.user.username)}</b></p>
+      <label>Current password<input name="oldPassword" type="password" required></label>
+      <label>New password (min 8)<input name="newPassword" type="password" required minlength="8"></label>
+      <label>Confirm new password<input name="confirm" type="password" required minlength="8"></label>
+      <button class="btn">Update password</button>
+    </form>`;
+}
+
+/* ============ FORM HANDLERS ============ */
+const FORMS = {
+  async login(f) {
+    const v = fd(f);
+    const j = await run(() => api('login', { username: v.username, password: v.password }));
+    if (!j) return;
+    S.token = j.token; store(j.token);
+    S.user = j.user; S.data = j.data;
+    S.tab = isAdmin() ? 'overview' : 'lessons';
+    render();
+  },
+  async register(f) {
+    const v = fd(f);
+    const j = await run(() => api('selfRegister', v));
+    if (j) { S.auth = 'login'; render(); toast(j.message || 'Registration submitted.'); }
+  },
+  async lesson(f) {
+    const t = S.data.teachers[Number(f.dataset.idx)];
+    const date = fd(f).date;
+    if (!date) return toast('Pick a date.', true);
+    const max = S.data.rates.maxLessonsPerDay;
+    if (t.lessons.filter(l => l.date === date).length >= max) return toast('Maximum ' + max + ' lesson(s) per day already logged for ' + date + '.', true);
+    const hol = holMap();
+    if (hol[date] !== undefined && !confirm('That date is a holiday' + (hol[date] ? ' (' + hol[date] + ')' : '') + '. Add the lesson anyway?')) return;
+    S.month = date.slice(0, 7);
+    await mutate('addLesson', { teacher: t.teacher, subject: t.subject, class: t.class, date: date, dayType: isWeekend(date) ? 'weekend' : 'weekday' }, 'Lesson added.');
+  },
+  addTeacher(f) { return mutate('registerTeacher', fd(f), 'Assignment registered.'); },
+  holiday(f) { return mutate('addHoliday', fd(f), 'Holiday added.'); },
+  rates(f) {
+    const v = fd(f);
+    return mutate('updateRates', { rateWeekday: v.rateWeekday, rateWeekend: v.rateWeekend, maxLessonsPerDay: v.maxLessonsPerDay, currency: v.currency }, 'Rates saved.');
+  },
+  payment(f) {
+    const v = fd(f), t = S.data.teachers[Number(v.idx)];
+    return mutate('addPayment', { teacher: t.teacher, subject: t.subject, class: t.class, amount: v.amount, date: v.date, month: v.month, note: v.note }, 'Payment recorded.');
+  },
+  createAccount(f) { return mutate('createTeacherAccount', fd(f), 'Teacher account created.'); },
+  complaint(f) { return mutate('submitComplaint', fd(f), 'Complaint submitted.'); },
+  updComplaint(f) {
+    const v = fd(f);
+    return mutate('updateComplaint', { complaintId: f.dataset.cid, status: v.status, adminResponse: v.adminResponse }, 'Complaint updated.');
+  },
+  async changePw(f) {
+    const v = fd(f);
+    if (v.newPassword !== v.confirm) return toast('The new passwords do not match.', true);
+    const j = await run(() => api('changePassword', { oldPassword: v.oldPassword, newPassword: v.newPassword }));
+    if (j) { f.reset(); toast(j.message || 'Password changed.'); }
+  }
+};
+
+/* ============ CLICK ACTIONS ============ */
+const ACTS = {
+  auth(el) { S.auth = el.dataset.mode; render(); },
+  tab(el) { S.tab = el.dataset.tab; render(); window.scrollTo(0, 0); },
+  async refresh() {
+    const j = await run(() => api('getDashboard'));
+    if (j) { S.user = j.user; S.data = j.data; render(); toast('Updated.'); }
+  },
+  async logout() { try { await api('logout'); } catch (e) {} doLogout(); },
+  print() { window.print(); },
+  delLesson(el) { if (confirm('Delete this lesson?')) mutate('deleteLesson', { rowIndex: Number(el.dataset.row) }, 'Lesson deleted.'); },
+  toggleVis(el) {
+    const t = S.data.teachers[Number(el.dataset.idx)];
+    mutate('toggleVisibility', { teacher: t.teacher, subject: t.subject, class: t.class, show: !t.showAmount }, 'Visibility updated.');
+  },
+  delTeacher(el) {
+    const t = S.data.teachers[Number(el.dataset.idx)];
+    if (confirm('Delete ' + t.teacher + ' — ' + t.subject + ' (' + t.class + ') and ALL its lessons? This cannot be undone.'))
+      mutate('deleteTeacher', { teacher: t.teacher, subject: t.subject, class: t.class }, 'Assignment deleted.');
+  },
+  delHoliday(el) { if (confirm('Delete this holiday?')) mutate('deleteHoliday', { rowIndex: Number(el.dataset.row) }, 'Holiday deleted.'); },
+  delPayment(el) { if (confirm('Delete this payment record?')) mutate('deletePayment', { rowIndex: Number(el.dataset.row) }, 'Payment deleted.'); },
+  approve(el) { mutate('approveAccount', { userId: el.dataset.uid }, 'Account activated.'); },
+  deactivate(el) { if (confirm('Deactivate this account? The user will be signed out on next request.')) mutate('deactivateAccount', { userId: el.dataset.uid }, 'Account deactivated.'); }
+};
+
+document.addEventListener('submit', e => {
+  const f = e.target.closest('form[data-form]');
+  if (!f) return;
+  e.preventDefault();
+  const h = FORMS[f.dataset.form];
+  if (h) h(f);
+});
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-act]');
+  if (!el) return;
+  const h = ACTS[el.dataset.act];
+  if (h) { e.preventDefault(); h(el); }
+});
+document.addEventListener('change', e => {
+  if (e.target.dataset && e.target.dataset.sel === 'month') { S.month = e.target.value; render(); }
+});
+
+/* ============ BOOT ============ */
+(async function boot() {
+  if (S.token) {
+    try {
+      const j = await api('getDashboard');
+      S.user = j.user; S.data = j.data;
+      S.tab = isAdmin() ? 'overview' : 'lessons';
+    } catch (e) { S.token = ''; store(''); }
+  }
+  S.loading = false;
+  render();
+})();
+</script>
+</body>
+</html>
