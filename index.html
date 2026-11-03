@@ -529,7 +529,7 @@ function card(t, i, admin) {
       <div class="dt"><b>${p ? p.d : '?'}</b><span>${p ? p.m : ''}</span></div>
       <div class="dn">${p ? p.w : esc(l.date)}<small>${p ? p.y : ''}</small></div>
       <div class="tg"><span class="badge ${l.dayType === 'weekend' ? 'brass' : ''}">${l.dayType === 'weekend' ? 'Weekend' : 'Weekday'}</span>${hol[l.date] !== undefined ? '<span class="badge warn">Holiday</span>' : ''}</div>
-      <button class="ib danger" data-act="delLesson" data-row="${l.rowIndex}" aria-label="Delete lesson">${ic('trash')}</button></li>`; };
+      ${admin ? `<button class="ib danger" data-act="delLesson" data-row="${l.rowIndex}" aria-label="Delete lesson">${ic('trash')}</button>` : ''}</li>`; };
   return `<article class="panel">
     <div class="asg-h">
       <div><h3>${esc(t.subject)}</h3><div class="tags"><span class="badge plain">${esc(t.class)}</span>${admin ? `<span class="badge ${t.showAmount ? 'ok' : 'warn'}">${t.showAmount ? 'Amounts visible' : 'Amounts hidden'}</span>` : ''}</div></div>
@@ -538,7 +538,7 @@ function card(t, i, admin) {
     ${strip(figs, 'mini')}
     ${sorted.length ? `<ul class="reg">${list.map(row).join('')}</ul>` : '<div class="none">No lessons logged in this period.</div>'}
     ${sorted.length > 5 ? `<button class="more" data-act="expand" data-idx="${i}">${open ? 'Show fewer' : 'Show all ' + sorted.length + ' lessons'}</button>` : ''}
-    <div class="asg-f"><button class="btn brass" data-act="logLesson" data-idx="${i}">${ic('plus')}Log a lesson</button></div>
+    ${admin ? `<div class="asg-f"><button class="btn brass" data-act="logLesson" data-idx="${i}">${ic('plus')}Log a lesson</button></div>` : ''}
   </article>`;
 }
 
@@ -694,6 +694,7 @@ function updLessonInfo() {
   if (btn) btn.disabled = !inp.value || t.lessons.filter(l => l.date === inp.value).length >= S.data.rates.maxLessonsPerDay;
 }
 function openLessonModal(i) {
+  if (!isAdmin()) return toast('Only an administrator can log lessons.', true);
   lessonIdx = i;
   const t = S.data.teachers[i], admin = isAdmin();
   formModal('Log a lesson', t.subject + ', ' + t.class + (admin ? ' (' + t.teacher + ')' : ''),
@@ -720,6 +721,7 @@ const FORMS = {
     if (j) { S.auth = 'login'; render(); toast(j.message || 'Registration submitted.'); }
   },
   async lessonModal(f) {
+    if (!isAdmin()) return toast('Only an administrator can log lessons.', true);
     const t = S.data.teachers[Number(f.dataset.idx)], date = fd(f).date;
     if (!date) return toast('Pick a date.', true);
     const j = await mutate('addLesson', { teacher: t.teacher, subject: t.subject, class: t.class, date: date, dayType: isWeekend(date) ? 'weekend' : 'weekday' }, 'Lesson logged.');
@@ -771,7 +773,10 @@ const ACTS = {
   closeModal() { closeModal(false); },
   dlgYes() { closeModal(true); },
   dlgNo() { closeModal(false); },
-  logLesson(el) { openLessonModal(Number(el.dataset.idx)); },
+  logLesson(el) {
+    if (!isAdmin()) return toast('Only an administrator can log lessons.', true);
+    openLessonModal(Number(el.dataset.idx));
+  },
   newAsg() {
     const names = Array.from(new Set(S.data.teachers.map(t => t.teacher)));
     formModal('New assignment', 'Link a teacher to a subject and class.',
@@ -806,7 +811,7 @@ const ACTS = {
        <label class="fld"><span>Title</span><input class="in" name="title" maxlength="120" required></label>
        <label class="fld"><span>Details</span><textarea class="in" name="description" maxlength="5000" required></textarea></label>`, 'Submit complaint', 'complaint');
   },
-  async delLesson(el) { if (await ask({ title: 'Delete this lesson?', message: 'It will be removed from the record and from the earnings total.', ok: 'Delete lesson', danger: true })) mutate('deleteLesson', { rowIndex: Number(el.dataset.row) }, 'Lesson deleted.'); },
+  async delLesson(el) { if (!isAdmin()) return; if (await ask({ title: 'Delete this lesson?', message: 'It will be removed from the record and from the earnings total.', ok: 'Delete lesson', danger: true })) mutate('deleteLesson', { rowIndex: Number(el.dataset.row) }, 'Lesson deleted.'); },
   toggleVis(el) {
     const t = S.data.teachers[Number(el.dataset.idx)];
     mutate('toggleVisibility', { teacher: t.teacher, subject: t.subject, class: t.class, show: !t.showAmount }, t.showAmount ? 'Amounts hidden from the teacher.' : 'Amounts now visible to the teacher.');
